@@ -1,0 +1,5 @@
+{
+  "name": "AI Client - All-in-One",
+  "description": "Веб-интерфейс для профессиональных нейрофотосессий (Nano Banana), удаления водяных знаков (Sora) и улучшения качества видео до 4K (Topaz Upscale).",
+  "requestFramePermissions": []
+}
