@@ -106,3 +106,8 @@ export interface HistoryItem {
   imageUrl?: string; // Legacy support
   timestamp: number;
 }
+
+export interface WalletState {
+  balance: number;
+  isUnlimited: boolean;
+}

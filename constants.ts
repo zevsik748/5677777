@@ -22,7 +22,7 @@ export const SECRET_PRICE = 1499;
 export const SBP_NUMBER = "89935801642";
 export const SBP_BANK = "Альфа Банк";
 export const SBP_RECIPIENT = "Дмитрий";
-export const SECRET_TELEGRAM_LINK = "https://t.me/dmitriy_ferixdi";
+export const SECRET_TELEGRAM_LINK = "https://t.me/ferixdi_ai";
 
 export const MARKETING_COPY: Record<ModelType, string[]> = {
   [MODEL_NANO]: [

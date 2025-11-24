@@ -24,7 +24,6 @@ import {
   SECRET_PRICE,
   SBP_NUMBER,
   SBP_BANK,
-  SBP_RECIPIENT,
   SECRET_TELEGRAM_LINK
 } from '../constants';
 import { createTask, getTaskStatus, parseResultJson } from '../services/kieService';
@@ -37,6 +36,10 @@ import {
 interface ImageGeneratorProps {
   apiKey: string;
   onHistoryUpdate: (item: HistoryItem) => void;
+  lavaUrl?: string;
+  balance: number;
+  onDeductBalance: (amount: number) => void;
+  onReqTopUp: () => void;
 }
 
 // Pricing configuration (RUB)
@@ -46,8 +49,15 @@ const PRICES: Record<ModelType, number> = {
   [MODEL_TOPAZ]: 10,
 };
 
-export const ImageGenerator: React.FC<ImageGeneratorProps> = ({ apiKey, onHistoryUpdate }) => {
-  const [activeSection, setActiveSection] = useState<SectionType>(MODEL_NANO);
+export const ImageGenerator: React.FC<ImageGeneratorProps> = ({ 
+  apiKey, 
+  onHistoryUpdate, 
+  lavaUrl,
+  balance,
+  onDeductBalance,
+  onReqTopUp
+}) => {
+  const [activeSection, setActiveSection] = useState<SectionType>(MODEL_NANO); // Default to Nano now as requested flow
 
   // Nano Form State
   const [prompt, setPrompt] = useState(DEFAULT_PROMPT);
@@ -162,6 +172,15 @@ export const ImageGenerator: React.FC<ImageGeneratorProps> = ({ apiKey, onHistor
   };
 
   const handleGenerate = async () => {
+    const model = activeSection as ModelType;
+    const price = PRICES[model] || 0;
+
+    // 1. CHECK BALANCE
+    if (balance < price) {
+      onReqTopUp();
+      return;
+    }
+
     setLoading(true);
     setError(null);
     setResultUrl(null);
@@ -169,7 +188,6 @@ export const ImageGenerator: React.FC<ImageGeneratorProps> = ({ apiKey, onHistor
 
     try {
       let input: TaskInput;
-      const model = activeSection as ModelType;
       
       if (model === MODEL_NANO) {
         if (!prompt.trim()) throw new Error("Введите промпт");
@@ -191,6 +209,9 @@ export const ImageGenerator: React.FC<ImageGeneratorProps> = ({ apiKey, onHistor
          throw new Error("Unknown model");
       }
 
+      // 2. DEDUCT BALANCE (Optimistic)
+      onDeductBalance(price);
+
       const taskId = await createTask(apiKey, model, input);
       
       if (model === MODEL_NANO) {
@@ -211,6 +232,14 @@ export const ImageGenerator: React.FC<ImageGeneratorProps> = ({ apiKey, onHistor
        setCheckingPayment(false);
        window.open(SECRET_TELEGRAM_LINK, '_blank');
     }, 1000);
+  };
+
+  const handleLavaRedirect = () => {
+    if (lavaUrl) {
+      window.open(lavaUrl, '_blank');
+    } else {
+      alert("Ссылка на оплату не настроена.");
+    }
   };
 
   const copyToClipboard = (text: string) => {
@@ -249,7 +278,7 @@ export const ImageGenerator: React.FC<ImageGeneratorProps> = ({ apiKey, onHistor
                { id: MODEL_NANO, label: 'Nano Pro', icon: Wand2, color: 'text-banana-500' },
                { id: MODEL_SORA, label: 'Sora Remove', icon: Video, color: 'text-pink-500' },
                { id: MODEL_TOPAZ, label: 'Topaz Upscale', icon: MonitorPlay, color: 'text-cyan-400' },
-               { id: SECTION_SECRET, label: 'Secret', icon: Lock, color: 'text-red-500' },
+               { id: SECTION_SECRET, label: 'Premium', icon: Lock, color: 'text-red-500' },
             ].map((tab) => (
                <button
                   key={tab.id}
@@ -321,7 +350,7 @@ export const ImageGenerator: React.FC<ImageGeneratorProps> = ({ apiKey, onHistor
                       <div className="flex items-start gap-2 text-red-200 pt-2 border-t border-red-500/10">
                          <div className="mt-1"><ShieldCheck className="w-4 h-4 text-red-500" /></div>
                          <p className="text-xs leading-relaxed opacity-90">
-                            За любую проблему с аккаунтом отвечаю лично: <a href="https://t.me/ferixdi_ai" target="_blank" rel="noreferrer" className="font-bold underline hover:text-white transition-colors">@ferixdi_ai</a>
+                            За любую проблему с аккаунтом отвечаю лично: <a href="https://t.me/ferixdi_ai" target="_blank" rel="noreferrer" className="font-bold underline hover:text-white transition-colors">https://t.me/ferixdi_ai</a>
                          </p>
                       </div>
                    </div>
@@ -346,7 +375,7 @@ export const ImageGenerator: React.FC<ImageGeneratorProps> = ({ apiKey, onHistor
                                className="w-full py-4 bg-red-600 hover:bg-red-500 text-white font-bold rounded-xl transition-all shadow-lg shadow-red-900/20 flex items-center justify-center gap-2"
                             >
                                <CreditCard className="w-5 h-5" />
-                               Оплатить через СБП
+                               Перейти к оплате
                             </button>
                             <div className="flex items-center justify-center gap-2 text-xs text-gray-500">
                                <Gift className="w-3 h-3" /> US Access Key Included
@@ -356,28 +385,41 @@ export const ImageGenerator: React.FC<ImageGeneratorProps> = ({ apiKey, onHistor
                    ) : (
                       <div className="space-y-6 animate-in fade-in zoom-in duration-300">
                          <div className="text-center space-y-2">
-                            <h3 className="text-white font-bold">Оплата через СБП</h3>
-                            <p className="text-xs text-gray-400">Перевод по номеру телефона</p>
+                            <h3 className="text-white font-bold">Оплата доступа</h3>
+                            <p className="text-xs text-gray-400">Выберите удобный способ</p>
                          </div>
 
                          <div className="space-y-3">
-                            <div className="bg-dark-950 p-3 rounded-lg border border-white/10 flex justify-between items-center">
-                               <div className="text-xs text-gray-400">Банк</div>
-                               <div className="text-sm font-bold text-white">{SBP_BANK}</div>
-                            </div>
-                            <div className="bg-dark-950 p-3 rounded-lg border border-white/10 flex justify-between items-center">
-                               <div className="text-xs text-gray-400">Получатель</div>
-                               <div className="text-sm font-bold text-white">{SBP_RECIPIENT}</div>
-                            </div>
-                            <div className="bg-dark-950 p-3 rounded-lg border border-white/10 flex justify-between items-center">
-                               <div className="text-xs text-gray-400">Номер</div>
-                               <div className="flex items-center gap-2">
-                                  <span className="text-sm font-bold text-white">{SBP_NUMBER}</span>
-                                  <button onClick={() => copyToClipboard(SBP_NUMBER)} className="text-gray-500 hover:text-white">
-                                     <Copy className="w-4 h-4" />
-                                  </button>
+                            {/* Lava Button */}
+                            {lavaUrl && (
+                              <button 
+                                 onClick={handleLavaRedirect}
+                                 className="w-full py-4 bg-purple-600 hover:bg-purple-500 text-white font-bold rounded-xl transition-all shadow-lg shadow-purple-900/20 flex items-center justify-center gap-2"
+                              >
+                                 <CreditCard className="w-5 h-5" />
+                                 Оплатить через Lava
+                              </button>
+                            )}
+                            
+                            {/* SBP Manual Info */}
+                            {!lavaUrl && (
+                               <div className="space-y-3">
+                                  <div className="bg-dark-950 p-3 rounded-lg border border-white/10 flex justify-between items-center">
+                                     <div className="text-xs text-gray-400">СБП / Банк</div>
+                                     <div className="text-sm font-bold text-white">{SBP_BANK}</div>
+                                  </div>
+                                  <div className="bg-dark-950 p-3 rounded-lg border border-white/10 flex justify-between items-center">
+                                     <div className="text-xs text-gray-400">Номер</div>
+                                     <div className="flex items-center gap-2">
+                                        <span className="text-sm font-bold text-white">{SBP_NUMBER}</span>
+                                        <button onClick={() => copyToClipboard(SBP_NUMBER)} className="text-gray-500 hover:text-white">
+                                           <Copy className="w-4 h-4" />
+                                        </button>
+                                     </div>
+                                  </div>
                                </div>
-                            </div>
+                            )}
+
                             <div className="bg-dark-950 p-3 rounded-lg border border-white/10 flex justify-between items-center">
                                <div className="text-xs text-gray-400">Сумма</div>
                                <div className="flex items-center gap-2">
@@ -390,7 +432,7 @@ export const ImageGenerator: React.FC<ImageGeneratorProps> = ({ apiKey, onHistor
                          </div>
 
                          <div className="p-3 bg-red-500/10 rounded-lg border border-red-500/20 text-xs text-red-200 text-center">
-                            Внимание! После оплаты обязательно отправьте чек в Telegram для получения доступа.
+                            Внимание! После оплаты обязательно отправьте чек в Telegram для получения кода доступа.
                          </div>
 
                          <button 
@@ -399,7 +441,7 @@ export const ImageGenerator: React.FC<ImageGeneratorProps> = ({ apiKey, onHistor
                             className="w-full py-4 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl transition-all shadow-lg shadow-blue-900/20 flex items-center justify-center gap-2"
                          >
                             {checkingPayment ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
-                            {checkingPayment ? 'Открываем Telegram...' : 'Отправить чек в Telegram'}
+                            {checkingPayment ? 'Открываем Telegram...' : 'Отправить чек и получить код'}
                          </button>
                          
                          <button 
@@ -448,7 +490,9 @@ export const ImageGenerator: React.FC<ImageGeneratorProps> = ({ apiKey, onHistor
                   )}
                </div>
                <div className="bg-dark-900/80 px-5 py-3 rounded-2xl border border-white/5 text-right min-w-[120px]">
-                  <div className="text-2xl font-bold text-white font-mono">{currentPrice}₽</div>
+                  <div className={`text-2xl font-bold font-mono ${balance < currentPrice ? 'text-red-500' : 'text-white'}`}>
+                     {currentPrice} ₽
+                  </div>
                   <div className="text-[10px] text-gray-500 uppercase font-bold tracking-wider">за операцию</div>
                </div>
             </div>
