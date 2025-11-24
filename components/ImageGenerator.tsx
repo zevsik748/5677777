@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { 
   AspectRatio, 
@@ -18,15 +19,16 @@ import {
   MODEL_SORA,
   MODEL_TOPAZ,
   SECTION_FULL_ACCESS,
+  SECTION_BUSINESS,
   NANO_PRESETS,
-  MARKETING_COPY
+  SECRET_TELEGRAM_LINK
 } from '../constants';
 import { createTask, getTaskStatus, parseResultJson } from '../services/kieService';
 import { 
   Wand2, Download, Maximize2, Loader2, AlertTriangle, 
-  UploadCloud, Video, Zap, X, Check, Sparkles, 
+  UploadCloud, Video, Zap, X, Check,
   MonitorPlay, ExternalLink, ChevronRight, Crown,
-  Link, FileVideo, Flame, Star
+  Link as LinkIcon, FileVideo, Briefcase, Globe, ShieldCheck, Users, RefreshCw
 } from 'lucide-react';
 
 interface ImageGeneratorProps {
@@ -193,7 +195,7 @@ export const ImageGenerator: React.FC<ImageGeneratorProps> = ({
   };
 
   const handleGenerate = async () => {
-    if (activeSection === SECTION_FULL_ACCESS) return;
+    if (activeSection === SECTION_FULL_ACCESS || activeSection === SECTION_BUSINESS) return;
     
     const model = activeSection as ModelType;
     const price = PRICES[model] || 0;
@@ -258,95 +260,170 @@ export const ImageGenerator: React.FC<ImageGeneratorProps> = ({
   };
 
   // ------------------------------------------
-  // RENDER: FULL ACCESS SECTION
+  // RENDER: BUSINESS TURNKEY SECTION
+  // ------------------------------------------
+  if (activeSection === SECTION_BUSINESS) {
+    return (
+      <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+         <NavigationTabs activeSection={activeSection} setActiveSection={setActiveSection} setResultData={setResultData} setError={setError} />
+
+         <div className="bg-gradient-to-br from-blue-600 to-indigo-700 p-[2px] rounded-[2.5rem] shadow-[0_0_80px_rgba(79,70,229,0.4)] relative">
+            <div className="absolute inset-0 blur-xl bg-gradient-to-r from-blue-600 to-indigo-600 opacity-50"></div>
+            <div className="bg-dark-950 rounded-[2.4rem] p-8 md:p-12 relative overflow-hidden z-10">
+               
+               {/* Header */}
+               <div className="text-center mb-10">
+                  <div className="inline-flex items-center gap-2 bg-blue-500/10 border border-blue-500/20 text-blue-400 px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-widest mb-6">
+                      <Briefcase className="w-4 h-4" /> B2B Partner
+                  </div>
+                  <h2 className="text-4xl md:text-5xl font-black text-white mb-4">
+                     ГОТОВЫЙ БИЗНЕС <br/>
+                     <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-400">ПОД КЛЮЧ</span>
+                  </h2>
+                  <p className="text-gray-400 max-w-xl mx-auto">
+                     Тренд 2025 года. Забудь про блокировки VPN и сложные настройки. Я сделаю всё за тебя.
+                  </p>
+               </div>
+
+               {/* Features */}
+               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+                  <div className="bg-white/5 border border-white/10 p-6 rounded-2xl hover:bg-white/10 transition-colors">
+                     <div className="w-12 h-12 bg-blue-500/20 rounded-xl flex items-center justify-center mb-4 text-blue-400">
+                        <Globe className="w-6 h-6" />
+                     </div>
+                     <h3 className="text-xl font-bold text-white mb-2">Упаковка в сайт</h3>
+                     <p className="text-sm text-gray-400">Подключу любые нейросети (Gemini, ChatGPT, Midjourney) к твоему личному сайту.</p>
+                  </div>
+                  <div className="bg-white/5 border border-white/10 p-6 rounded-2xl hover:bg-white/10 transition-colors">
+                     <div className="w-12 h-12 bg-cyan-500/20 rounded-xl flex items-center justify-center mb-4 text-cyan-400">
+                        <ShieldCheck className="w-6 h-6" />
+                     </div>
+                     <h3 className="text-xl font-bold text-white mb-2">Без блокировок</h3>
+                     <p className="text-sm text-gray-400">Доступы к VPN постоянно блокируют, а с собственным сервисом таких проблем не будет.</p>
+                  </div>
+                  <div className="bg-white/5 border border-white/10 p-6 rounded-2xl hover:bg-white/10 transition-colors">
+                     <div className="w-12 h-12 bg-indigo-500/20 rounded-xl flex items-center justify-center mb-4 text-indigo-400">
+                        <Users className="w-6 h-6" />
+                     </div>
+                     <h3 className="text-xl font-bold text-white mb-2">Трафик и Клиенты</h3>
+                     <p className="text-sm text-gray-400">Покажу, как гнать трафик и монетизировать этот инструмент.</p>
+                  </div>
+               </div>
+
+               {/* CTA */}
+               <div className="bg-gradient-to-r from-dark-900 to-dark-800 border border-white/10 rounded-2xl p-8 flex flex-col md:flex-row items-center justify-between gap-6">
+                  <div className="text-center md:text-left">
+                     <h4 className="text-2xl font-bold text-white mb-2">Готов обсудить проект?</h4>
+                     <p className="text-gray-400 text-sm">Напиши мне в Telegram, разберем твою идею и условия.</p>
+                  </div>
+                  <a 
+                    href={SECRET_TELEGRAM_LINK}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="px-8 py-4 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl transition-all shadow-lg hover:shadow-blue-500/30 flex items-center gap-2 whitespace-nowrap"
+                  >
+                     <Briefcase className="w-5 h-5" />
+                     Обсудить проект
+                  </a>
+               </div>
+
+            </div>
+         </div>
+      </div>
+    )
+  }
+
+  // ------------------------------------------
+  // RENDER: FULL ACCESS (PRO UNLIMITED) SECTION
   // ------------------------------------------
   if (activeSection === SECTION_FULL_ACCESS) {
     return (
       <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-        <div className="flex justify-center overflow-x-auto pb-2">
-         <div className="bg-dark-900 p-1.5 rounded-2xl border border-white/10 flex shadow-2xl">
-            {[
-               { id: MODEL_NANO, label: 'Nano Pro', icon: Wand2, color: 'text-banana-500' },
-               { id: MODEL_SORA, label: 'Sora Remove', icon: Video, color: 'text-pink-500' },
-               { id: MODEL_TOPAZ, label: 'Topaz Upscale', icon: MonitorPlay, color: 'text-cyan-400' },
-               { id: SECTION_FULL_ACCESS, label: 'PRO UNLIMITED', icon: Crown, color: 'text-yellow-400' },
-            ].map((tab) => (
-               <button
-                  key={tab.id}
-                  onClick={() => setActiveSection(tab.id as SectionType)}
-                  className={`flex items-center gap-2 px-4 md:px-6 py-3 rounded-xl text-xs md:text-sm font-bold transition-all duration-300 ${
-                     activeSection === tab.id 
-                        ? 'bg-dark-800 text-white shadow-lg border border-white/5' 
-                        : 'text-gray-500 hover:text-gray-300 hover:bg-white/5'
-                  }`}
-               >
-                  <tab.icon className={`w-4 h-4 ${activeSection === tab.id ? tab.color : 'text-gray-600'}`} />
-                  <span className="whitespace-nowrap">{tab.label}</span>
-               </button>
-            ))}
-         </div>
-      </div>
+        <NavigationTabs activeSection={activeSection} setActiveSection={setActiveSection} setResultData={setResultData} setError={setError} />
+
+        {/* PRO CARD */}
         <div className="bg-gradient-to-br from-yellow-500 via-orange-500 to-red-500 p-[2px] rounded-[2.5rem] shadow-[0_0_80px_rgba(234,179,8,0.4)] relative">
           <div className="absolute inset-0 blur-xl bg-gradient-to-r from-yellow-500 to-red-600 opacity-50"></div>
-          <div className="bg-dark-950 rounded-[2.4rem] p-8 md:p-12 text-center relative overflow-hidden z-10">
+          <div className="bg-dark-950 rounded-[2.4rem] p-6 md:p-10 text-center relative overflow-hidden z-10">
              
-             {/* Background Effects */}
-             <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-full bg-[radial-gradient(circle_at_50%_0%,rgba(234,179,8,0.2),transparent_70%)] pointer-events-none"></div>
-             
+             {/* Particles Effect */}
+             <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-full bg-[radial-gradient(circle_at_50%_0%,rgba(234,179,8,0.15),transparent_70%)] pointer-events-none"></div>
+
              <div className="inline-flex items-center gap-2 bg-yellow-500/10 border border-yellow-500/20 text-yellow-400 px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-widest mb-6 animate-pulse">
-                <Crown className="w-4 h-4" /> Special Offer
+                <Crown className="w-4 h-4" /> Google Ultra AI
              </div>
 
              <h2 className="text-4xl md:text-6xl font-black text-white mb-6 leading-tight">
                PRO <span className="text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-orange-400">UNLIMITED</span>
              </h2>
              
-             <p className="text-gray-400 text-lg md:text-xl max-w-2xl mx-auto mb-10 leading-relaxed">
-               Доступ к <b className="text-white">безлимиту</b> Nano Banana Pro и генерации видео <b className="text-white">Veo</b> на месяц.
-               <br/><span className="text-sm opacity-70">Мы с вами это обсуждали — теперь это доступно в один клик.</span>
-             </p>
-
-             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-10 max-w-3xl mx-auto">
-                <div className="bg-white/5 border border-white/10 p-5 rounded-2xl flex items-center gap-4 text-left">
-                   <div className="w-12 h-12 rounded-full bg-banana-500/20 flex items-center justify-center shrink-0">
-                      <Wand2 className="w-6 h-6 text-banana-500" />
-                   </div>
-                   <div>
-                      <h3 className="font-bold text-white">Nano Banana Pro</h3>
-                      <p className="text-xs text-gray-500">Безлимитные фотосессии</p>
-                   </div>
-                </div>
-                <div className="bg-white/5 border border-white/10 p-5 rounded-2xl flex items-center gap-4 text-left">
-                   <div className="w-12 h-12 rounded-full bg-purple-500/20 flex items-center justify-center shrink-0">
-                      <Video className="w-6 h-6 text-purple-500" />
-                   </div>
-                   <div>
-                      <h3 className="font-bold text-white">Veo Video</h3>
-                      <p className="text-xs text-gray-500">Генерация видео Veo (Sora)</p>
-                   </div>
+             <div className="bg-white/5 border border-white/10 rounded-2xl p-6 mb-8 max-w-3xl mx-auto backdrop-blur-sm">
+                <p className="text-gray-300 text-lg leading-relaxed mb-4">
+                  Это эксклюзивная <b>Складчина</b> на доступ к мощностям Google Ultra AI. 
+                  Вы получаете <span className="text-yellow-400 font-bold">БЕЗЛИМИТНЫЙ</span> доступ к генерациям Nano Banana Pro и Veo на месяц.
+                </p>
+                <div className="flex flex-col gap-3 text-sm text-gray-400 bg-black/20 p-4 rounded-xl">
+                    <div className="flex items-start gap-3 text-left">
+                       <RefreshCw className="w-5 h-5 text-banana-500 shrink-0 mt-0.5" />
+                       <p>Если на аккаунте заканчиваются кредиты — я мгновенно выдаю <b>НОВЫЙ</b> аккаунт. Доступ не прерывается.</p>
+                    </div>
+                    <div className="flex items-start gap-3 text-left">
+                       <Users className="w-5 h-5 text-banana-500 shrink-0 mt-0.5" />
+                       <p>Беспроблемный доступ: количество участников складчины уже приближается к цифре <b>100</b>.</p>
+                    </div>
                 </div>
              </div>
 
-             <div className="flex flex-col items-center gap-2 mb-10">
-                <span className="text-gray-500 text-lg line-through decoration-red-500 decoration-2">5000 ₽</span>
+             <div className="flex flex-col items-center gap-2 mb-8">
                 <div className="flex items-center gap-3">
                    <span className="text-6xl md:text-7xl font-black text-white tracking-tighter">1000 ₽</span>
                    <span className="text-xl text-gray-400 font-medium">/ месяц</span>
                 </div>
+                <span className="text-sm text-green-400 font-bold bg-green-900/30 px-3 py-1 rounded-full border border-green-500/30">
+                   Гарантия замены аккаунта
+                </span>
              </div>
 
              <button 
                onClick={onReqTopUp}
-               className="w-full max-w-md py-6 bg-gradient-to-r from-yellow-500 to-red-600 text-white font-black text-xl md:text-2xl rounded-2xl shadow-[0_10px_40px_rgba(234,179,8,0.3)] hover:shadow-[0_20px_60px_rgba(234,179,8,0.5)] hover:scale-105 transition-all flex items-center justify-center gap-3"
+               className="w-full max-w-md py-5 bg-gradient-to-r from-yellow-500 to-red-600 text-white font-black text-xl rounded-2xl shadow-[0_10px_40px_rgba(234,179,8,0.3)] hover:shadow-[0_20px_60px_rgba(234,179,8,0.5)] hover:scale-105 transition-all flex items-center justify-center gap-3 mx-auto"
              >
-               <Crown className="w-8 h-8" />
-               КУПИТЬ ДОСТУП
+               <Zap className="w-6 h-6 fill-current" />
+               ВСТУПИТЬ В СКЛАДЧИНУ
              </button>
-             
-             <p className="mt-6 text-xs text-gray-600">
-               Предложение ограничено по времени. Активация происходит автоматически после оплаты.
-             </p>
           </div>
+        </div>
+
+        {/* PERSONAL ACCOUNT OFFER */}
+        <div className="border border-white/10 rounded-[2rem] bg-dark-900/50 p-8 relative overflow-hidden group">
+            <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:opacity-20 transition-opacity">
+               <Crown className="w-32 h-32 text-purple-500" />
+            </div>
+            
+            <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-8">
+               <div className="text-center md:text-left">
+                  <h3 className="text-2xl font-bold text-white mb-2 flex items-center justify-center md:justify-start gap-2">
+                     Личный Аккаунт <span className="text-purple-400 text-sm border border-purple-500/30 px-2 py-0.5 rounded bg-purple-500/10">PREMIUM</span>
+                  </h3>
+                  <p className="text-gray-400 text-sm max-w-md mb-4">
+                     Для тех, кто хочет полный контроль. Гарантированный безлимит на месяц.
+                     Включено 25,000 кредитов (~2500 видео).
+                  </p>
+                  <p className="text-xs text-purple-300 font-bold">
+                     🔥 Даже если кредиты закончатся — выдам ЕЩЁ ОДИН аккаунт бесплатно.
+                  </p>
+               </div>
+               
+               <div className="flex flex-col items-center gap-3 shrink-0">
+                  <span className="text-3xl font-black text-white">4000 ₽</span>
+                  <button 
+                     onClick={() => window.open(SECRET_TELEGRAM_LINK, '_blank')}
+                     className="px-6 py-3 bg-white/10 hover:bg-purple-600 border border-purple-500/50 hover:border-purple-500 text-white font-bold rounded-xl transition-all"
+                  >
+                     Купить Личный
+                  </button>
+               </div>
+            </div>
         </div>
       </div>
     );
@@ -357,34 +434,7 @@ export const ImageGenerator: React.FC<ImageGeneratorProps> = ({
   return (
     <div className="space-y-8">
       
-      {/* Navigation Switcher */}
-      <div className="flex justify-center overflow-x-auto pb-2">
-         <div className="bg-dark-900 p-1.5 rounded-2xl border border-white/10 flex shadow-2xl">
-            {[
-               { id: MODEL_NANO, label: 'Nano Pro', icon: Wand2, color: 'text-banana-500' },
-               { id: MODEL_SORA, label: 'Sora Remove', icon: Video, color: 'text-pink-500' },
-               { id: MODEL_TOPAZ, label: 'Topaz Upscale', icon: MonitorPlay, color: 'text-cyan-400' },
-               { id: SECTION_FULL_ACCESS, label: 'PRO UNLIMITED', icon: Crown, color: 'text-yellow-400' },
-            ].map((tab) => (
-               <button
-                  key={tab.id}
-                  onClick={() => {
-                     setActiveSection(tab.id as SectionType);
-                     setResultData(null); // Clear result when explicitly switching tabs
-                     setError(null);
-                  }}
-                  className={`flex items-center gap-2 px-4 md:px-6 py-3 rounded-xl text-xs md:text-sm font-bold transition-all duration-300 ${
-                     activeSection === tab.id 
-                        ? 'bg-dark-800 text-white shadow-lg border border-white/5' 
-                        : 'text-gray-500 hover:text-gray-300 hover:bg-white/5'
-                  }`}
-               >
-                  <tab.icon className={`w-4 h-4 ${activeSection === tab.id ? tab.color : 'text-gray-600'}`} />
-                  <span className="whitespace-nowrap">{tab.label}</span>
-               </button>
-            ))}
-         </div>
-      </div>
+      <NavigationTabs activeSection={activeSection} setActiveSection={setActiveSection} setResultData={setResultData} setError={setError} />
 
       {/* MAIN TOOLS INTERFACE */}
       <div className="bg-dark-900/40 backdrop-blur-xl border border-white/10 rounded-[2.5rem] p-1 shadow-2xl relative overflow-hidden ring-1 ring-white/5">
@@ -542,7 +592,7 @@ export const ImageGenerator: React.FC<ImageGeneratorProps> = ({
                        onClick={() => setSoraMode('link')}
                        className={`px-6 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2 ${soraMode === 'link' ? 'bg-pink-600 text-white shadow-lg' : 'text-gray-400 hover:text-white'}`}
                      >
-                       <Link className="w-4 h-4" /> По ссылке
+                       <LinkIcon className="w-4 h-4" /> По ссылке
                      </button>
                      <button 
                        onClick={() => setSoraMode('file')}
@@ -563,7 +613,7 @@ export const ImageGenerator: React.FC<ImageGeneratorProps> = ({
                              className="w-full bg-dark-900 border border-white/10 text-gray-100 rounded-xl pl-12 pr-4 py-4 text-sm focus:ring-2 focus:ring-pink-500/30 outline-none"
                              placeholder="https://sora.chatgpt.com/..."
                           />
-                          <Link className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
+                          <LinkIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
                        </div>
                     </div>
                   ) : (
@@ -782,3 +832,44 @@ export const ImageGenerator: React.FC<ImageGeneratorProps> = ({
     </div>
   );
 };
+
+const NavigationTabs = ({ 
+  activeSection, 
+  setActiveSection, 
+  setResultData, 
+  setError 
+}: { 
+  activeSection: string, 
+  setActiveSection: (s: SectionType) => void,
+  setResultData: (d: any) => void,
+  setError: (e: any) => void
+}) => (
+   <div className="flex justify-center overflow-x-auto pb-2 scrollbar-hide">
+      <div className="bg-dark-900 p-1.5 rounded-2xl border border-white/10 flex shadow-2xl">
+         {[
+            { id: MODEL_NANO, label: 'Nano Pro', icon: Wand2, color: 'text-banana-500' },
+            { id: MODEL_SORA, label: 'Sora Remove', icon: Video, color: 'text-pink-500' },
+            { id: MODEL_TOPAZ, label: 'Topaz Upscale', icon: MonitorPlay, color: 'text-cyan-400' },
+            { id: SECTION_FULL_ACCESS, label: 'PRO UNLIMITED', icon: Crown, color: 'text-yellow-400' },
+            { id: SECTION_BUSINESS, label: 'Бизнес под ключ', icon: Briefcase, color: 'text-blue-400' },
+         ].map((tab) => (
+            <button
+               key={tab.id}
+               onClick={() => {
+                  setActiveSection(tab.id as SectionType);
+                  setResultData(null); 
+                  setError(null);
+               }}
+               className={`flex items-center gap-2 px-4 md:px-6 py-3 rounded-xl text-xs md:text-sm font-bold transition-all duration-300 ${
+                  activeSection === tab.id 
+                     ? 'bg-dark-800 text-white shadow-lg border border-white/5' 
+                     : 'text-gray-500 hover:text-gray-300 hover:bg-white/5'
+               }`}
+            >
+               <tab.icon className={`w-4 h-4 ${activeSection === tab.id ? tab.color : 'text-gray-600'}`} />
+               <span className="whitespace-nowrap">{tab.label}</span>
+            </button>
+         ))}
+      </div>
+   </div>
+);
