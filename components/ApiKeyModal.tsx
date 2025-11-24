@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Key, Save, Eye, EyeOff, ShieldCheck } from 'lucide-react';
 import { STORAGE_KEY_API_KEY } from '../constants';
@@ -71,17 +72,6 @@ export const ApiKeyModal: React.FC<ApiKeyModalProps> = ({ onSave, isOpen }) => {
               <Save className="h-5 w-5" />
               Сохранить и продолжить
             </button>
-          </div>
-          
-          <div className="text-center">
-            <a 
-              href="https://kie.ai/api-key" 
-              target="_blank" 
-              rel="noreferrer"
-              className="text-xs text-banana-500 hover:underline"
-            >
-              Получить ключ в Dashboard
-            </a>
           </div>
         </div>
       </div>

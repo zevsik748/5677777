@@ -672,3 +672,23 @@ export const ImageGenerator: React.FC<ImageGeneratorProps> = ({ apiKey, onHistor
                               <span className="font-bold text-white mr-2">Prompt:</span>
                               {preset.prompt}
                            </p>
+                        </div>
+                        <button 
+                           onClick={() => {
+                              setPrompt(preset.prompt);
+                              window.scrollTo({ top: 0, behavior: 'smooth' });
+                           }}
+                           className="text-xs text-gray-500 uppercase font-bold tracking-wider hover:text-banana-500 transition-colors flex items-center gap-1"
+                        >
+                           Применить этот стиль <ChevronRight className="w-3 h-3" />
+                        </button>
+                     </div>
+                  </div>
+               ))}
+            </div>
+         </div>
+      )}
+
+    </div>
+  );
+};
