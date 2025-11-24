@@ -1,3 +1,4 @@
+
 import { CreateTaskRequest, CreateTaskResponse, TaskInput, TaskRecordResponse, TaskRecordData, ModelType } from "../types";
 
 const BASE_URL = "https://api.kie.ai/api/v1/jobs";
@@ -72,9 +73,21 @@ export const parseResultJson = (jsonString?: string): string[] => {
   if (!jsonString) return [];
   try {
     const parsed = JSON.parse(jsonString);
+    
+    // Robust parsing for different response formats
+    if (Array.isArray(parsed)) {
+      return parsed.map(String);
+    }
+    
     if (parsed.resultUrls && Array.isArray(parsed.resultUrls)) {
       return parsed.resultUrls;
     }
+    
+    if (parsed.url) return [parsed.url];
+    if (parsed.image_url) return [parsed.image_url];
+    if (parsed.video_url) return [parsed.video_url];
+    if (parsed.output) return [parsed.output];
+
     return [];
   } catch (e) {
     console.error("Failed to parse result JSON", e);

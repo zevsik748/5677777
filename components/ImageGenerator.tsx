@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { 
   AspectRatio, 
@@ -11,23 +12,22 @@ import {
 } from '../types';
 import { 
   ASPECT_RATIOS, 
+  RESOLUTIONS,
   DEFAULT_PROMPT, 
   DEFAULT_SORA_URL,
-  DEFAULT_TOPAZ_URL,
   MODEL_NANO,
   MODEL_SORA,
   MODEL_TOPAZ,
-  SECTION_SECRET,
+  SECTION_FULL_ACCESS,
   NANO_PRESETS,
-  MARKETING_COPY,
-  SECRET_PRICE,
-  SECRET_TELEGRAM_LINK
+  MARKETING_COPY
 } from '../constants';
 import { createTask, getTaskStatus, parseResultJson } from '../services/kieService';
 import { 
   Wand2, Download, Maximize2, Loader2, AlertTriangle, 
   UploadCloud, Video, Zap, X, Check, Sparkles, 
-  MonitorPlay, Lock, ExternalLink, ChevronRight, CreditCard, Send, Gift, ShieldCheck
+  MonitorPlay, ExternalLink, ChevronRight, Crown,
+  Link, FileVideo, Flame, Star
 } from 'lucide-react';
 
 interface ImageGeneratorProps {
@@ -65,19 +65,19 @@ export const ImageGenerator: React.FC<ImageGeneratorProps> = ({
   const [refImage, setRefImage] = useState<string | null>(null);
 
   // Sora Form State
+  const [soraMode, setSoraMode] = useState<'link' | 'file'>('link');
   const [soraUrl, setSoraUrl] = useState(DEFAULT_SORA_URL);
+  const [soraFile, setSoraFile] = useState<string | null>(null);
 
   // Topaz Form State
-  const [topazUrl, setTopazUrl] = useState(DEFAULT_TOPAZ_URL);
+  const [topazFile, setTopazFile] = useState<string | null>(null);
   const [upscaleFactor, setUpscaleFactor] = useState<UpscaleFactor>(UpscaleFactor.X4);
-
-  // Secret/Payment State
-  const [showPayment, setShowPayment] = useState(false);
-  const [checkingPayment, setCheckingPayment] = useState(false);
 
   // Execution State
   const [loading, setLoading] = useState(false);
-  const [resultUrl, setResultUrl] = useState<string | null>(null);
+  
+  // Stores the final result
+  const [resultData, setResultData] = useState<{ url: string; isVideo: boolean } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [statusMsg, setStatusMsg] = useState<string>('');
 
@@ -91,30 +91,27 @@ export const ImageGenerator: React.FC<ImageGeneratorProps> = ({
   }, []);
 
   useEffect(() => {
-    setResultUrl(null);
     setError(null);
-    setShowPayment(false);
   }, [activeSection]);
 
   useEffect(() => {
-    if (resultUrl && resultRef.current) {
-      resultRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    if ((resultData || error) && resultRef.current) {
+      setTimeout(() => {
+        resultRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 100);
     }
-  }, [resultUrl]);
+  }, [resultData, error]);
 
-  const handleRefImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      if (file.size > 10 * 1024 * 1024) {
-        setError(`Размер файла не должен превышать 10MB`);
-        return;
-      }
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setRefImage(reader.result as string);
-      };
-      reader.readAsDataURL(file);
+  const handleFileRead = (file: File, callback: (base64: string) => void) => {
+    if (file.size > 50 * 1024 * 1024) {
+      setError('Файл слишком большой (макс 50MB)');
+      return;
     }
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      callback(reader.result as string);
+    };
+    reader.readAsDataURL(file);
   };
 
   const startPolling = (taskId: string, model: ModelType, currentPrompt?: string, currentVideoUrl?: string) => {
@@ -130,7 +127,7 @@ export const ImageGenerator: React.FC<ImageGeneratorProps> = ({
     };
 
     if (model === MODEL_NANO) historyItemBase.prompt = currentPrompt;
-    if (model === MODEL_SORA || model === MODEL_TOPAZ) historyItemBase.videoInputUrl = currentVideoUrl;
+    if (model === MODEL_SORA || model === MODEL_TOPAZ) historyItemBase.videoInputUrl = currentVideoUrl || "File Upload";
 
     onHistoryUpdate(historyItemBase);
 
@@ -147,14 +144,15 @@ export const ImageGenerator: React.FC<ImageGeneratorProps> = ({
           const finalUrl = urls.length > 0 ? urls[0] : null;
           
           if (finalUrl) {
-            setResultUrl(finalUrl);
+            const isVideo = model === MODEL_SORA || model === MODEL_TOPAZ;
+            setResultData({ url: finalUrl, isVideo });
             onHistoryUpdate({
               ...historyItemBase,
               status: 'success',
               resultUrl: finalUrl
             });
           } else {
-            setError('Результат не найден.');
+            setError('Результат не найден в ответе сервера.');
             onHistoryUpdate({ ...historyItemBase, status: 'fail' });
           }
         } else if (data.state === 'fail') {
@@ -170,10 +168,16 @@ export const ImageGenerator: React.FC<ImageGeneratorProps> = ({
   };
 
   const handleGenerate = async () => {
+    if (activeSection === SECTION_FULL_ACCESS) return;
+    
     const model = activeSection as ModelType;
     const price = PRICES[model] || 0;
 
-    // 1. CHECK BALANCE
+    if (!apiKey) {
+      onReqTopUp();
+      return;
+    }
+
     if (balance < price) {
       onReqTopUp();
       return;
@@ -181,7 +185,7 @@ export const ImageGenerator: React.FC<ImageGeneratorProps> = ({
 
     setLoading(true);
     setError(null);
-    setResultUrl(null);
+    setResultData(null);
     setStatusMsg('Инициализация...');
 
     try {
@@ -197,26 +201,30 @@ export const ImageGenerator: React.FC<ImageGeneratorProps> = ({
           image_input: refImage ? [refImage] : []
         };
       } else if (model === MODEL_SORA) {
-        if (!soraUrl.trim()) throw new Error("Введите URL видео");
-        if (!soraUrl.includes("sora.chatgpt.com")) throw new Error("Только ссылки sora.chatgpt.com");
-        input = { video_url: soraUrl };
+        if (soraMode === 'link') {
+          if (!soraUrl.trim()) throw new Error("Введите URL видео");
+          input = { video_url: soraUrl };
+        } else {
+          if (!soraFile) throw new Error("Загрузите видео файл");
+          input = { video_base64: soraFile };
+        }
       } else if (model === MODEL_TOPAZ) {
-         if (!topazUrl.trim()) throw new Error("Введите URL видео");
-         input = { video_url: topazUrl, upscale_factor: upscaleFactor };
+         if (!topazFile) throw new Error("Загрузите видео файл");
+         input = { video_base64: topazFile, upscale_factor: upscaleFactor };
       } else {
          throw new Error("Unknown model");
       }
 
-      // 2. DEDUCT BALANCE (Optimistic)
       onDeductBalance(price);
 
       const taskId = await createTask(apiKey, model, input);
       
-      if (model === MODEL_NANO) {
-        startPolling(taskId, model, prompt);
-      } else {
-        startPolling(taskId, model, undefined, model === MODEL_SORA ? soraUrl : topazUrl);
-      }
+      const promptLabel = model === MODEL_NANO ? prompt : undefined;
+      let urlLabel = undefined;
+      if (model === MODEL_SORA) urlLabel = soraMode === 'link' ? soraUrl : 'Sora File';
+      if (model === MODEL_TOPAZ) urlLabel = 'Topaz File';
+
+      startPolling(taskId, model, promptLabel, urlLabel);
 
     } catch (err: any) {
       setLoading(false);
@@ -224,34 +232,102 @@ export const ImageGenerator: React.FC<ImageGeneratorProps> = ({
     }
   };
 
-  const handleTelegramRedirect = () => {
-    setCheckingPayment(true);
-    setTimeout(() => {
-       setCheckingPayment(false);
-       window.open(SECRET_TELEGRAM_LINK, '_blank');
-    }, 1000);
-  };
+  // ------------------------------------------
+  // RENDER: FULL ACCESS SECTION
+  // ------------------------------------------
+  if (activeSection === SECTION_FULL_ACCESS) {
+    return (
+      <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+        <div className="flex justify-center overflow-x-auto pb-2">
+         <div className="bg-dark-900 p-1.5 rounded-2xl border border-white/10 flex shadow-2xl">
+            {[
+               { id: MODEL_NANO, label: 'Nano Pro', icon: Wand2, color: 'text-banana-500' },
+               { id: MODEL_SORA, label: 'Sora Remove', icon: Video, color: 'text-pink-500' },
+               { id: MODEL_TOPAZ, label: 'Topaz Upscale', icon: MonitorPlay, color: 'text-cyan-400' },
+               { id: SECTION_FULL_ACCESS, label: 'PRO UNLIMITED', icon: Crown, color: 'text-yellow-400' },
+            ].map((tab) => (
+               <button
+                  key={tab.id}
+                  onClick={() => setActiveSection(tab.id as SectionType)}
+                  className={`flex items-center gap-2 px-4 md:px-6 py-3 rounded-xl text-xs md:text-sm font-bold transition-all duration-300 ${
+                     activeSection === tab.id 
+                        ? 'bg-dark-800 text-white shadow-lg border border-white/5' 
+                        : 'text-gray-500 hover:text-gray-300 hover:bg-white/5'
+                  }`}
+               >
+                  <tab.icon className={`w-4 h-4 ${activeSection === tab.id ? tab.color : 'text-gray-600'}`} />
+                  <span className="whitespace-nowrap">{tab.label}</span>
+               </button>
+            ))}
+         </div>
+      </div>
+        <div className="bg-gradient-to-br from-yellow-500 via-orange-500 to-red-500 p-[2px] rounded-[2.5rem] shadow-[0_0_80px_rgba(234,179,8,0.4)] relative">
+          <div className="absolute inset-0 blur-xl bg-gradient-to-r from-yellow-500 to-red-600 opacity-50"></div>
+          <div className="bg-dark-950 rounded-[2.4rem] p-8 md:p-12 text-center relative overflow-hidden z-10">
+             
+             {/* Background Effects */}
+             <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-full bg-[radial-gradient(circle_at_50%_0%,rgba(234,179,8,0.2),transparent_70%)] pointer-events-none"></div>
+             
+             <div className="inline-flex items-center gap-2 bg-yellow-500/10 border border-yellow-500/20 text-yellow-400 px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-widest mb-6 animate-pulse">
+                <Crown className="w-4 h-4" /> Special Offer
+             </div>
 
-  const isVideoResult = (activeSection === MODEL_SORA || activeSection === MODEL_TOPAZ || (resultUrl && resultUrl.match(/\.(mp4|mov|webm)(\?.*)?$/i)));
-  const currentPrice = activeSection !== SECTION_SECRET ? PRICES[activeSection as ModelType] : 0;
+             <h2 className="text-4xl md:text-6xl font-black text-white mb-6 leading-tight">
+               PRO <span className="text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-orange-400">UNLIMITED</span>
+             </h2>
+             
+             <p className="text-gray-400 text-lg md:text-xl max-w-2xl mx-auto mb-10 leading-relaxed">
+               Доступ к <b className="text-white">безлимитной</b> генерации Nano Banana Pro и созданию видео <b className="text-white">Veo</b> на месяц.
+               <br/><span className="text-sm opacity-70">Вы потеряли вкладку с этим предложением, но мы её вернули.</span>
+             </p>
 
-  // Helper to render marketing points
-  const renderMarketingPoints = (model: ModelType) => (
-     <div className="mb-8 bg-black/20 p-5 rounded-2xl border border-white/5">
-        <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-4 flex items-center gap-2">
-           <Sparkles className="w-4 h-4 text-yellow-500" />
-           Маркетинговые преимущества
-        </h3>
-        <ul className="space-y-3">
-           {MARKETING_COPY[model].map((point, idx) => (
-              <li key={idx} className="text-sm text-gray-300 flex items-start gap-3">
-                 <div className="w-1.5 h-1.5 rounded-full bg-banana-500 mt-1.5 shrink-0" />
-                 <span className="leading-relaxed">{point}</span>
-              </li>
-           ))}
-        </ul>
-     </div>
-  );
+             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-10 max-w-3xl mx-auto">
+                <div className="bg-white/5 border border-white/10 p-5 rounded-2xl flex items-center gap-4 text-left">
+                   <div className="w-12 h-12 rounded-full bg-banana-500/20 flex items-center justify-center shrink-0">
+                      <Wand2 className="w-6 h-6 text-banana-500" />
+                   </div>
+                   <div>
+                      <h3 className="font-bold text-white">Nano Banana Pro</h3>
+                      <p className="text-xs text-gray-500">Безлимитные фотосессии</p>
+                   </div>
+                </div>
+                <div className="bg-white/5 border border-white/10 p-5 rounded-2xl flex items-center gap-4 text-left">
+                   <div className="w-12 h-12 rounded-full bg-purple-500/20 flex items-center justify-center shrink-0">
+                      <Video className="w-6 h-6 text-purple-500" />
+                   </div>
+                   <div>
+                      <h3 className="font-bold text-white">Veo Video</h3>
+                      <p className="text-xs text-gray-500">Генерация видео нового поколения</p>
+                   </div>
+                </div>
+             </div>
+
+             <div className="flex flex-col items-center gap-2 mb-10">
+                <span className="text-gray-500 text-lg line-through decoration-red-500 decoration-2">5000 ₽</span>
+                <div className="flex items-center gap-3">
+                   <span className="text-6xl md:text-7xl font-black text-white tracking-tighter">1000 ₽</span>
+                   <span className="text-xl text-gray-400 font-medium">/ месяц</span>
+                </div>
+             </div>
+
+             <button 
+               onClick={onReqTopUp}
+               className="w-full max-w-md py-6 bg-gradient-to-r from-yellow-500 to-red-600 text-white font-black text-xl md:text-2xl rounded-2xl shadow-[0_10px_40px_rgba(234,179,8,0.3)] hover:shadow-[0_20px_60px_rgba(234,179,8,0.5)] hover:scale-105 transition-all flex items-center justify-center gap-3"
+             >
+               <Crown className="w-8 h-8" />
+               КУПИТЬ ДОСТУП
+             </button>
+             
+             <p className="mt-6 text-xs text-gray-600">
+               Предложение ограничено по времени. Активация происходит автоматически после оплаты.
+             </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const currentPrice = PRICES[activeSection as ModelType];
 
   return (
     <div className="space-y-8">
@@ -263,7 +339,7 @@ export const ImageGenerator: React.FC<ImageGeneratorProps> = ({
                { id: MODEL_NANO, label: 'Nano Pro', icon: Wand2, color: 'text-banana-500' },
                { id: MODEL_SORA, label: 'Sora Remove', icon: Video, color: 'text-pink-500' },
                { id: MODEL_TOPAZ, label: 'Topaz Upscale', icon: MonitorPlay, color: 'text-cyan-400' },
-               { id: SECTION_SECRET, label: 'Premium', icon: Lock, color: 'text-red-500' },
+               { id: SECTION_FULL_ACCESS, label: 'PRO UNLIMITED', icon: Crown, color: 'text-yellow-400' },
             ].map((tab) => (
                <button
                   key={tab.id}
@@ -281,115 +357,7 @@ export const ImageGenerator: React.FC<ImageGeneratorProps> = ({
          </div>
       </div>
 
-      {/* SECRET SECTION */}
-      {activeSection === SECTION_SECRET ? (
-         <div className="bg-dark-950 border border-red-900/30 rounded-[2.5rem] shadow-2xl relative overflow-hidden">
-             <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-red-900/20 via-transparent to-transparent pointer-events-none"></div>
-             
-             {/* Header */}
-             <div className="p-8 md:p-12 border-b border-red-900/20 relative z-10">
-                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-red-500/10 border border-red-500/20 text-red-500 text-[10px] font-bold uppercase tracking-widest mb-6 animate-pulse">
-                   <Lock className="w-3 h-3" /> Private Access
-                </div>
-                <h2 className="text-4xl md:text-5xl font-extrabold text-white tracking-tight mb-4">
-                   Google Labs <span className="text-red-500">Insider</span>
-                </h2>
-                <p className="text-xl text-gray-400 font-light leading-relaxed max-w-2xl">
-                   Доступ к аккаунту Google Labs с безлимитными возможностями.
-                </p>
-             </div>
-
-             {/* Content Body */}
-             <div className="p-8 md:p-12 grid md:grid-cols-2 gap-12 relative z-10">
-                
-                {/* Features List */}
-                <div className="space-y-8">
-                   <div className="space-y-4">
-                      <ul className="space-y-4">
-                         {[
-                            "Безлимит Nano Banana Pro",
-                            "Безлимит генерации видео Veo",
-                            "Ключ доступа США (US) на месяц — В подарок 🎁",
-                            "Поддержка 24/7"
-                         ].map((item, i) => (
-                            <li key={i} className="flex items-start gap-3 text-gray-300 text-sm">
-                               <Check className="w-5 h-5 text-red-500 shrink-0" />
-                               <span>{item}</span>
-                            </li>
-                         ))}
-                      </ul>
-                   </div>
-                   
-                   <div className="p-5 bg-red-950/30 border border-red-500/10 rounded-xl space-y-4">
-                      <div className="flex items-start gap-2 text-red-200 pt-2 border-t border-red-500/10">
-                         <div className="mt-1"><ShieldCheck className="w-4 h-4 text-red-500" /></div>
-                         <p className="text-xs leading-relaxed opacity-90">
-                            За любую проблему с аккаунтом отвечаю лично: <a href="https://t.me/ferixdi_ai" target="_blank" rel="noreferrer" className="font-bold underline hover:text-white transition-colors">https://t.me/ferixdi_ai</a>
-                         </p>
-                      </div>
-                   </div>
-                </div>
-
-                {/* Pricing & Payment */}
-                <div className="bg-dark-900/50 rounded-3xl border border-white/5 p-8 flex flex-col justify-between">
-                   {!showPayment ? (
-                      <>
-                         <div className="space-y-2">
-                            <span className="text-sm text-gray-500 line-through">5 000 ₽</span>
-                            <div className="flex items-baseline gap-2">
-                               <span className="text-5xl font-extrabold text-white">{SECRET_PRICE} ₽</span>
-                               <span className="text-gray-400 font-medium">/ мес</span>
-                            </div>
-                            <p className="text-xs text-gray-500 mt-2">Ограниченное предложение.</p>
-                         </div>
-
-                         <div className="mt-8 space-y-4">
-                            <button 
-                               onClick={() => setShowPayment(true)}
-                               className="w-full py-4 bg-red-600 hover:bg-red-500 text-white font-bold rounded-xl transition-all shadow-lg shadow-red-900/20 flex items-center justify-center gap-2"
-                            >
-                               <CreditCard className="w-5 h-5" />
-                               Перейти к оплате
-                            </button>
-                            <div className="flex items-center justify-center gap-2 text-xs text-gray-500">
-                               <Gift className="w-3 h-3" /> US Access Key Included
-                            </div>
-                         </div>
-                      </>
-                   ) : (
-                      <div className="space-y-6 animate-in fade-in zoom-in duration-300">
-                         <div className="text-center space-y-2">
-                            <h3 className="text-white font-bold">Оплата доступа</h3>
-                            <p className="text-xs text-gray-400">Напишите администратору для оплаты</p>
-                         </div>
-
-                         <div className="p-3 bg-red-500/10 rounded-lg border border-red-500/20 text-xs text-red-200 text-center">
-                            Для получения реквизитов и активации нажмите кнопку ниже.
-                         </div>
-
-                         <button 
-                            onClick={handleTelegramRedirect}
-                            disabled={checkingPayment}
-                            className="w-full py-4 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl transition-all shadow-lg shadow-blue-900/20 flex items-center justify-center gap-2"
-                         >
-                            {checkingPayment ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
-                            {checkingPayment ? 'Открываем Telegram...' : 'Написать в Telegram'}
-                         </button>
-                         
-                         <button 
-                            onClick={() => setShowPayment(false)}
-                            className="w-full py-2 text-xs text-gray-500 hover:text-white transition-colors"
-                         >
-                            Вернуться назад
-                         </button>
-                      </div>
-                   )}
-                </div>
-             </div>
-         </div>
-      ) : (
-      
-      /* MAIN TOOLS INTERFACE */
+      {/* MAIN TOOLS INTERFACE */}
       <div className="bg-dark-900/40 backdrop-blur-xl border border-white/10 rounded-[2.5rem] p-1 shadow-2xl relative overflow-hidden ring-1 ring-white/5">
         <div className={`absolute top-0 left-0 right-0 h-1 opacity-75 ${
            activeSection === MODEL_NANO ? 'bg-gradient-to-r from-transparent via-banana-500 to-transparent' : 
@@ -411,7 +379,7 @@ export const ImageGenerator: React.FC<ImageGeneratorProps> = ({
                   {activeSection === MODEL_SORA && (
                      <>
                         <h2 className="text-3xl md:text-4xl font-extrabold text-white">Sora <span className="text-pink-500">Watermark Remover</span></h2>
-                        <p className="text-gray-400 mt-2 text-sm">Очистка видео от водяных знаков для коммерции.</p>
+                        <p className="text-gray-400 mt-2 text-sm">Очистка видео от водяных знаков.</p>
                      </>
                   )}
                   {activeSection === MODEL_TOPAZ && (
@@ -421,16 +389,39 @@ export const ImageGenerator: React.FC<ImageGeneratorProps> = ({
                      </>
                   )}
                </div>
-               <div className="bg-dark-900/80 px-5 py-3 rounded-2xl border border-white/5 text-right min-w-[120px]">
-                  <div className={`text-2xl font-bold font-mono ${balance < currentPrice ? 'text-red-500' : 'text-white'}`}>
-                     {currentPrice} ₽
+               
+               {/* Super Cool Price Display */}
+               <div 
+                  className="relative group cursor-pointer transform hover:scale-105 transition-transform duration-300" 
+                  onClick={onReqTopUp}
+               >
+                  <div className={`absolute -inset-0.5 bg-gradient-to-r blur-lg opacity-60 group-hover:opacity-100 transition duration-500 animate-pulse ${
+                     activeSection === MODEL_NANO ? 'from-yellow-400 via-orange-500 to-red-500' :
+                     activeSection === MODEL_SORA ? 'from-pink-400 via-purple-500 to-indigo-500' :
+                     'from-cyan-400 via-blue-500 to-teal-400'
+                  }`}></div>
+                  
+                  <div className="relative bg-dark-900 border border-white/20 px-8 py-4 rounded-2xl flex flex-col items-center shadow-2xl">
+                     <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-red-600 text-white text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full shadow-lg border border-red-400 animate-bounce">
+                        HOT SALE
+                     </div>
+                     <div className="flex items-center gap-2 opacity-50 mb-1">
+                        <span className="text-sm line-through decoration-red-500 decoration-2 font-mono text-gray-400">
+                           {currentPrice * 5} ₽
+                        </span>
+                     </div>
+                     <div className="flex items-baseline gap-1">
+                        <span className={`text-5xl font-black leading-none tracking-tighter ${balance < currentPrice ? 'text-red-500' : 'text-white'}`}>
+                           {currentPrice}
+                        </span>
+                        <span className="text-xl font-bold text-gray-400">₽</span>
+                     </div>
+                     <span className="text-[9px] text-gray-400 font-bold uppercase tracking-widest mt-1">
+                        за генерацию
+                     </span>
                   </div>
-                  <div className="text-[10px] text-gray-500 uppercase font-bold tracking-wider">за операцию</div>
                </div>
             </div>
-
-            {/* Marketing Points */}
-            {renderMarketingPoints(activeSection as ModelType)}
 
             {/* NANO FORM */}
             {activeSection === MODEL_NANO && (
@@ -472,12 +463,33 @@ export const ImageGenerator: React.FC<ImageGeneratorProps> = ({
                             ))}
                           </div>
                        </div>
+                       
+                       <div className="space-y-3">
+                          <label className="text-xs font-bold text-gray-500 uppercase tracking-wider ml-1">Разрешение</label>
+                          <div className="grid grid-cols-3 gap-2">
+                            {RESOLUTIONS.map((res) => (
+                              <button
+                                key={res}
+                                onClick={() => setResolution(res)}
+                                className={`text-xs py-2.5 rounded-lg border transition-all ${
+                                  resolution === res 
+                                    ? 'bg-banana-500 text-dark-950 border-banana-500 font-bold' 
+                                    : 'bg-dark-900/50 border-white/5 text-gray-400 hover:bg-dark-800'
+                                }`}
+                              >
+                                {res}
+                              </button>
+                            ))}
+                          </div>
+                       </div>
                     </div>
 
                     <div className="space-y-3">
                         <label className="text-xs font-bold text-gray-500 uppercase tracking-wider ml-1">Референс (Фото)</label>
                         <div className="relative h-full min-h-[120px] group">
-                           <input type="file" accept="image/*" onChange={handleRefImageUpload} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20" />
+                           <input type="file" accept="image/*" onChange={(e) => {
+                             if(e.target.files?.[0]) handleFileRead(e.target.files[0], setRefImage)
+                           }} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20" />
                            <div className={`absolute inset-0 rounded-2xl border-2 border-dashed transition-all flex flex-col items-center justify-center gap-2 p-4 ${
                               refImage ? 'border-banana-500/30 bg-dark-900/30' : 'border-white/10 bg-dark-900/30 hover:border-banana-500/30'
                            }`}>
@@ -496,19 +508,64 @@ export const ImageGenerator: React.FC<ImageGeneratorProps> = ({
             {/* SORA FORM */}
             {activeSection === MODEL_SORA && (
                <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                  <div className="space-y-2">
-                     <label className="text-xs font-bold text-gray-500 uppercase tracking-wider ml-1">Sora Video URL</label>
-                     <div className="relative">
-                        <input
-                           type="text"
-                           value={soraUrl}
-                           onChange={(e) => setSoraUrl(e.target.value)}
-                           className="w-full bg-dark-900 border border-white/10 text-gray-100 rounded-xl pl-12 pr-4 py-4 text-sm focus:ring-2 focus:ring-pink-500/30 outline-none"
-                           placeholder="https://sora.chatgpt.com/..."
-                        />
-                        <Video className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
-                     </div>
+                  <div className="flex bg-dark-950 p-1 rounded-xl w-fit border border-white/5 mx-auto">
+                     <button 
+                       onClick={() => setSoraMode('link')}
+                       className={`px-6 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2 ${soraMode === 'link' ? 'bg-pink-600 text-white shadow-lg' : 'text-gray-400 hover:text-white'}`}
+                     >
+                       <Link className="w-4 h-4" /> По ссылке
+                     </button>
+                     <button 
+                       onClick={() => setSoraMode('file')}
+                       className={`px-6 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2 ${soraMode === 'file' ? 'bg-pink-600 text-white shadow-lg' : 'text-gray-400 hover:text-white'}`}
+                     >
+                       <FileVideo className="w-4 h-4" /> Файл
+                     </button>
                   </div>
+
+                  {soraMode === 'link' ? (
+                    <div className="space-y-2">
+                       <label className="text-xs font-bold text-gray-500 uppercase tracking-wider ml-1">Sora Video URL</label>
+                       <div className="relative">
+                          <input
+                             type="text"
+                             value={soraUrl}
+                             onChange={(e) => setSoraUrl(e.target.value)}
+                             className="w-full bg-dark-900 border border-white/10 text-gray-100 rounded-xl pl-12 pr-4 py-4 text-sm focus:ring-2 focus:ring-pink-500/30 outline-none"
+                             placeholder="https://sora.chatgpt.com/..."
+                          />
+                          <Link className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
+                       </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                       <label className="text-xs font-bold text-gray-500 uppercase tracking-wider ml-1">Загрузить видео</label>
+                       <div className="relative h-48 group">
+                           <input type="file" accept="video/*" onChange={(e) => {
+                             if(e.target.files?.[0]) handleFileRead(e.target.files[0], setSoraFile)
+                           }} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20" />
+                           <div className={`absolute inset-0 rounded-2xl border-2 border-dashed transition-all flex flex-col items-center justify-center gap-2 p-4 ${
+                              soraFile ? 'border-pink-500/30 bg-dark-900/30' : 'border-white/10 bg-dark-900/30 hover:border-pink-500/30'
+                           }`}>
+                              {soraFile ? (
+                                <div className="flex flex-col items-center gap-2 text-pink-500">
+                                   <div className="w-12 h-12 bg-pink-500/20 rounded-full flex items-center justify-center">
+                                      <Check className="w-6 h-6" />
+                                   </div>
+                                   <span className="text-sm font-bold">Видео выбрано</span>
+                                   <span className="text-xs text-pink-400/70">Нажмите чтобы заменить</span>
+                                </div>
+                              ) : (
+                                <div className="flex flex-col items-center gap-2 text-gray-500 group-hover:text-pink-400 transition-colors">
+                                   <UploadCloud className="w-10 h-10 mb-2" />
+                                   <span className="text-sm font-bold">Перетащите видео или нажмите</span>
+                                   <span className="text-xs opacity-50">Максимальный размер 50MB</span>
+                                </div>
+                              )}
+                           </div>
+                       </div>
+                    </div>
+                  )}
                </div>
             )}
 
@@ -516,26 +573,40 @@ export const ImageGenerator: React.FC<ImageGeneratorProps> = ({
             {activeSection === MODEL_TOPAZ && (
                <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
                    <div className="space-y-2">
-                     <label className="text-xs font-bold text-gray-500 uppercase tracking-wider ml-1">Видео URL (MP4)</label>
-                     <div className="relative">
-                        <input
-                           type="text"
-                           value={topazUrl}
-                           onChange={(e) => setTopazUrl(e.target.value)}
-                           className="w-full bg-dark-900 border border-white/10 text-gray-100 rounded-xl pl-12 pr-4 py-4 text-sm focus:ring-2 focus:ring-cyan-500/30 outline-none"
-                           placeholder="https://..."
-                        />
-                        <MonitorPlay className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
-                     </div>
+                     <label className="text-xs font-bold text-gray-500 uppercase tracking-wider ml-1">Загрузка видео (MP4/MOV)</label>
+                     <div className="relative h-48 group">
+                           <input type="file" accept="video/*" onChange={(e) => {
+                             if(e.target.files?.[0]) handleFileRead(e.target.files[0], setTopazFile)
+                           }} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20" />
+                           <div className={`absolute inset-0 rounded-2xl border-2 border-dashed transition-all flex flex-col items-center justify-center gap-2 p-4 ${
+                              topazFile ? 'border-cyan-500/30 bg-dark-900/30' : 'border-white/10 bg-dark-900/30 hover:border-cyan-500/30'
+                           }`}>
+                              {topazFile ? (
+                                <div className="flex flex-col items-center gap-2 text-cyan-500">
+                                  <div className="w-12 h-12 bg-cyan-500/20 rounded-full flex items-center justify-center">
+                                      <Check className="w-6 h-6" />
+                                   </div>
+                                  <span className="text-sm font-bold">Видео готово к обработке</span>
+                                  <span className="text-xs text-cyan-400/70">Нажмите чтобы заменить</span>
+                                </div>
+                              ) : (
+                                <div className="flex flex-col items-center gap-2 text-gray-500 group-hover:text-cyan-400 transition-colors">
+                                  <UploadCloud className="w-10 h-10 mb-2" />
+                                  <span className="text-sm font-medium">Перетащите видео или нажмите</span>
+                                  <span className="text-[10px] uppercase opacity-70">Макс 50MB</span>
+                                </div>
+                              )}
+                           </div>
+                       </div>
                   </div>
 
                   <div className="space-y-2">
                      <label className="text-xs font-bold text-gray-500 uppercase tracking-wider ml-1">Фактор увеличения</label>
                      <div className="flex gap-4">
                         <button
-                           className="w-full py-4 rounded-xl border font-bold text-sm transition-all bg-cyan-500/10 border-cyan-500 text-cyan-400 cursor-default"
+                           className="w-full py-4 rounded-xl border font-bold text-sm transition-all bg-cyan-500/10 border-cyan-500 text-cyan-400 cursor-default flex items-center justify-center gap-2"
                         >
-                           4x (4K Ultra)
+                           <MonitorPlay className="w-4 h-4" /> 4x (4K Ultra)
                         </button>
                      </div>
                   </div>
@@ -562,26 +633,25 @@ export const ImageGenerator: React.FC<ImageGeneratorProps> = ({
             </div>
         </div>
       </div>
-      )}
 
       {/* RESULT AREA */}
-      {(resultUrl || error) && (
-         <div ref={resultRef} className="animate-in fade-in slide-in-from-bottom-8 duration-500">
+      {(resultData || error) && (
+         <div ref={resultRef} className="animate-in fade-in slide-in-from-bottom-8 duration-500 scroll-mt-24">
             {error ? (
                 <div className="bg-red-900/20 border border-red-500/30 p-6 rounded-2xl text-center text-red-200">
                    <AlertTriangle className="w-8 h-8 mx-auto mb-2 text-red-500" />
                    {error}
                 </div>
             ) : (
-                <div className="bg-dark-900 rounded-[2rem] overflow-hidden border border-white/10 shadow-2xl">
-                   <div className="p-4 bg-black/50 flex justify-end gap-2 backdrop-blur absolute w-full z-10">
-                      <a href={resultUrl!} target="_blank" rel="noreferrer" className="p-2 bg-white/10 rounded-full hover:bg-white/20 text-white"><Maximize2 className="w-5 h-5" /></a>
-                      <a href={resultUrl!} download className="p-2 bg-banana-500 rounded-full text-black hover:bg-banana-400"><Download className="w-5 h-5" /></a>
+                <div className="bg-dark-900 rounded-[2rem] overflow-hidden border border-white/10 shadow-2xl relative">
+                   <div className="p-4 bg-black/50 flex justify-end gap-2 backdrop-blur absolute w-full z-10 top-0 left-0">
+                      <a href={resultData!.url} target="_blank" rel="noreferrer" className="p-2 bg-white/10 rounded-full hover:bg-white/20 text-white"><Maximize2 className="w-5 h-5" /></a>
+                      <a href={resultData!.url} download className="p-2 bg-banana-500 rounded-full text-black hover:bg-banana-400"><Download className="w-5 h-5" /></a>
                    </div>
-                   {isVideoResult ? (
-                      <video src={resultUrl!} controls className="w-full aspect-video object-contain bg-black" />
+                   {resultData!.isVideo ? (
+                      <video src={resultData!.url} controls autoPlay loop className="w-full aspect-video object-contain bg-black" />
                    ) : (
-                      <img src={resultUrl!} alt="Result" className="w-full h-auto object-contain bg-black" />
+                      <img src={resultData!.url} alt="Result" className="w-full h-auto object-contain bg-black min-h-[300px]" />
                    )}
                 </div>
             )}
@@ -596,6 +666,10 @@ export const ImageGenerator: React.FC<ImageGeneratorProps> = ({
                <span className="text-gray-500 text-xs font-bold uppercase tracking-widest">Лента идей</span>
                <div className="h-px bg-white/10 flex-1"></div>
             </div>
+
+            <p className="text-center text-gray-500 text-sm">
+               Тут я буду добавлять все промпты для нейросъемок
+            </p>
 
             <div className="grid gap-8 max-w-2xl mx-auto">
                {NANO_PRESETS.map((preset) => (

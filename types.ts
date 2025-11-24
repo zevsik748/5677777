@@ -4,7 +4,7 @@ export type ModelType =
   | "sora-watermark-remover"
   | "topaz/video-upscale";
 
-export type SectionType = ModelType | "secret-section";
+export type SectionType = ModelType | "buy-full-access";
 
 export enum AspectRatio {
   Square = "1:1",
@@ -44,11 +44,13 @@ export interface NanoTaskInput {
 }
 
 export interface SoraTaskInput {
-  video_url: string;
+  video_url?: string;
+  video_base64?: string; // Support for direct upload
 }
 
 export interface TopazTaskInput {
-  video_url: string;
+  video_url?: string;
+  video_base64?: string; // Support for direct upload
   upscale_factor: UpscaleFactor;
 }
 

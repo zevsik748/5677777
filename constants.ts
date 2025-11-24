@@ -4,7 +4,7 @@ import { AspectRatio, OutputFormat, Resolution, ModelType } from "./types";
 export const MODEL_NANO = "nano-banana-pro";
 export const MODEL_SORA = "sora-watermark-remover";
 export const MODEL_TOPAZ = "topaz/video-upscale";
-export const SECTION_SECRET = "secret-section";
+export const SECTION_FULL_ACCESS = "buy-full-access";
 
 export const ASPECT_RATIOS = Object.values(AspectRatio);
 export const RESOLUTIONS = Object.values(Resolution);
