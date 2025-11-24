@@ -1,36 +1,61 @@
-
 import React, { useState, useEffect } from 'react';
 import { ApiKeyModal } from './components/ApiKeyModal';
 import { ImageGenerator } from './components/ImageGenerator';
 import { HistorySidebar } from './components/HistorySidebar';
 import { STORAGE_KEY_API_KEY, STORAGE_KEY_HISTORY } from './constants';
 import { HistoryItem } from './types';
-import { Zap, Clock, Wallet, Shield } from 'lucide-react';
+import { Zap, Clock, Wallet, Shield, AlertTriangle } from 'lucide-react';
 
-// Safe environment variable getter that works in Vite and other environments
-const getEnv = (key: string): string | undefined => {
-  // Try import.meta.env (Vite standard)
-  try {
-    // @ts-ignore
-    if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env[key]) {
-      // @ts-ignore
-      return import.meta.env[key];
+interface ErrorBoundaryProps {
+  children?: React.ReactNode;
+}
+
+interface ErrorBoundaryState {
+  hasError: boolean;
+  error: string;
+}
+
+// Error Boundary Component to catch runtime errors
+class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  constructor(props: ErrorBoundaryProps) {
+    super(props);
+    this.state = { hasError: false, error: '' };
+  }
+
+  static getDerivedStateFromError(error: any): ErrorBoundaryState {
+    return { hasError: true, error: error.toString() };
+  }
+
+  componentDidCatch(error: any, errorInfo: any) {
+    console.error("Uncaught error:", error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="min-h-screen bg-[#030712] flex flex-col items-center justify-center p-4 text-white">
+          <div className="bg-red-900/20 border border-red-500/30 p-6 rounded-2xl max-w-md w-full text-center">
+            <AlertTriangle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+            <h2 className="text-xl font-bold mb-2">Произошла ошибка</h2>
+            <p className="text-gray-400 text-sm mb-4">Приложение не смогло запуститься корректно.</p>
+            <div className="bg-black/50 p-3 rounded-lg text-left text-xs font-mono text-red-200 overflow-auto max-h-32">
+              {this.state.error}
+            </div>
+            <button 
+              onClick={() => window.location.reload()}
+              className="mt-6 px-6 py-2 bg-red-600 hover:bg-red-500 rounded-lg text-sm font-bold transition-colors"
+            >
+              Перезагрузить страницу
+            </button>
+          </div>
+        </div>
+      );
     }
-  } catch (e) {}
+    return this.props.children;
+  }
+}
 
-  // Try process.env (Fallback)
-  try {
-    // @ts-ignore
-    if (typeof process !== 'undefined' && process.env && process.env[key]) {
-      // @ts-ignore
-      return process.env[key];
-    }
-  } catch (e) {}
-
-  return undefined;
-};
-
-const App: React.FC = () => {
+const AppContent: React.FC = () => {
   // Application State
   const [apiKey, setApiKey] = useState<string | null>(null);
   const [history, setHistory] = useState<HistoryItem[]>([]);
@@ -46,26 +71,45 @@ const App: React.FC = () => {
   const [lavaUrl, setLavaUrl] = useState<string | null>(null);
 
   useEffect(() => {
-    // 1. Load configuration from Environment
-    const envApiKey = getEnv('VITE_API_KEY');
-    const envAccessCode = getEnv('VITE_ACCESS_CODE');
-    const envLavaUrl = getEnv('VITE_LAVA_URL');
+    // 1. Load configuration SAFELY
+    // We access env vars explicitly so bundlers like Vite can replace them statically.
+    
+    let envApiKey: string | undefined;
+    let envAccessCode: string | undefined;
+    let envLavaUrl: string | undefined;
 
+    try {
+      // Try import.meta.env (Vite)
+      // @ts-ignore
+      if (typeof import.meta !== 'undefined' && import.meta.env) {
+        // @ts-ignore
+        envApiKey = import.meta.env.VITE_API_KEY;
+        // @ts-ignore
+        envAccessCode = import.meta.env.VITE_ACCESS_CODE;
+        // @ts-ignore
+        envLavaUrl = import.meta.env.VITE_LAVA_URL;
+      }
+    } catch (e) {}
+
+    try {
+      // Try process.env (Node/Webpack fallback)
+      if (!envApiKey && typeof process !== 'undefined' && process.env) {
+        envApiKey = process.env.VITE_API_KEY;
+        envAccessCode = process.env.VITE_ACCESS_CODE;
+        envLavaUrl = process.env.VITE_LAVA_URL;
+      }
+    } catch (e) {}
+
+    // Fallback logic
     if (envApiKey) {
       setApiKey(envApiKey);
     } else {
-      // Fallback: Check local storage
       const storedKey = localStorage.getItem(STORAGE_KEY_API_KEY);
       if (storedKey) setApiKey(storedKey);
     }
 
-    // Set Access Code (default to 'admin' if not set, to allow testing)
     setAccessCode(envAccessCode || 'admin');
-    
-    // Set Lava URL
-    if (envLavaUrl) {
-      setLavaUrl(envLavaUrl);
-    }
+    if (envLavaUrl) setLavaUrl(envLavaUrl);
 
     // 2. Load History
     const storedHistory = localStorage.getItem(STORAGE_KEY_HISTORY);
@@ -82,7 +126,7 @@ const App: React.FC = () => {
     if (storedBalance) {
       setBalance(parseInt(storedBalance, 10));
     } else {
-      setBalance(0); // New users start with 0
+      setBalance(0);
     }
 
     // Fake Online Counter Animation
@@ -101,15 +145,14 @@ const App: React.FC = () => {
   }, []);
 
   const handleTopUp = (code: string) => {
-    // Simple logic: if code matches VITE_ACCESS_CODE, give money
     if (accessCode && code.trim() === accessCode) {
-      const newBalance = (balance || 0) + 1000; // Add 1000 RUB per code activation for simplicity
+      const newBalance = (balance || 0) + 1000; 
       setBalance(newBalance);
       localStorage.setItem('kie_user_balance', newBalance.toString());
       setIsWalletModalOpen(false);
       alert(`Код принят! Баланс пополнен. Текущий баланс: ${newBalance} ₽`);
     } else {
-      alert("Неверный код активации. Пожалуйста, оплатите доступ через Lava и получите корректный код.");
+      alert("Неверный код активации.");
     }
   };
 
@@ -185,7 +228,6 @@ const App: React.FC = () => {
               </span>
           </div>
 
-          {/* Wallet Button */}
           <button 
             onClick={() => setIsWalletModalOpen(true)}
             className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border transition-all ${
@@ -221,7 +263,6 @@ const App: React.FC = () => {
                onReqTopUp={() => setIsWalletModalOpen(true)}
              />
            ) : (
-             /* Fallback if VITE_API_KEY is missing */
              <div className="flex flex-col items-center justify-center mt-32 text-gray-500 gap-6">
                 <div className="w-20 h-20 rounded-full bg-dark-900 flex items-center justify-center border border-dark-700">
                    <Shield className="w-10 h-10 text-red-500" />
@@ -229,7 +270,7 @@ const App: React.FC = () => {
                 <div className="text-center max-w-md px-4">
                   <h2 className="text-xl font-bold text-gray-200 mb-2">Требуется настройка</h2>
                   <p className="text-sm text-gray-400 leading-relaxed">
-                    Ключ API не найден. Пожалуйста, добавьте переменную <code className="bg-dark-800 px-1 py-0.5 rounded text-banana-500">VITE_API_KEY</code> в настройки деплоя Timeweb.
+                    Ключ API не найден. Проверьте переменные окружения (VITE_API_KEY) в Timeweb.
                   </p>
                 </div>
              </div>
@@ -255,6 +296,14 @@ const App: React.FC = () => {
         </div>
       </>
     </div>
+  );
+};
+
+const App: React.FC = () => {
+  return (
+    <ErrorBoundary>
+      <AppContent />
+    </ErrorBoundary>
   );
 };
 
