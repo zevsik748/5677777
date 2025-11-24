@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Key, Save, Lock, Wallet, CreditCard, X } from 'lucide-react';
 
@@ -7,11 +6,10 @@ interface ApiKeyModalProps {
   isOpen: boolean;
   mode?: 'api-key' | 'access-code';
   currentBalance?: number;
-  lavaUrl?: string;
   onClose?: () => void;
 }
 
-export const ApiKeyModal: React.FC<ApiKeyModalProps> = ({ onSave, isOpen, mode = 'api-key', currentBalance = 0, lavaUrl, onClose }) => {
+export const ApiKeyModal: React.FC<ApiKeyModalProps> = ({ onSave, isOpen, mode = 'api-key', currentBalance = 0, onClose }) => {
   const [inputKey, setInputKey] = useState('');
 
   useEffect(() => {
@@ -49,27 +47,6 @@ export const ApiKeyModal: React.FC<ApiKeyModalProps> = ({ onSave, isOpen, mode =
              <span className="text-gray-400 text-xs uppercase tracking-wider">Текущий баланс</span>
              <div className="text-3xl font-mono font-bold text-white">{currentBalance} ₽</div>
           </div>
-
-          {/* Pay Action */}
-          {lavaUrl && (
-            <div className="space-y-2">
-              <label className="text-gray-300 text-xs font-semibold uppercase tracking-wider">
-                Пополнение баланса
-              </label>
-              <a 
-                href={lavaUrl} 
-                target="_blank" 
-                rel="noreferrer"
-                className="w-full py-3 bg-purple-600 hover:bg-purple-500 text-white font-bold rounded-lg transition-colors flex items-center justify-center gap-2"
-              >
-                <CreditCard className="w-5 h-5" />
-                Оплатить через Lava
-              </a>
-              <p className="text-[10px] text-gray-500 text-center">
-                После оплаты вы получите код пополнения. Введите его ниже.
-              </p>
-            </div>
-          )}
 
           {/* Code Input */}
           <div className="space-y-2 pt-2 border-t border-white/5">

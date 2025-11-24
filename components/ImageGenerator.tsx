@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { 
   AspectRatio, 
@@ -22,21 +21,18 @@ import {
   NANO_PRESETS,
   MARKETING_COPY,
   SECRET_PRICE,
-  SBP_NUMBER,
-  SBP_BANK,
   SECRET_TELEGRAM_LINK
 } from '../constants';
 import { createTask, getTaskStatus, parseResultJson } from '../services/kieService';
 import { 
   Wand2, Download, Maximize2, Loader2, AlertTriangle, 
   UploadCloud, Video, Zap, X, Check, Sparkles, 
-  MonitorPlay, Lock, ExternalLink, ChevronRight, CreditCard, Copy, Terminal, Send, Gift, ShieldCheck
+  MonitorPlay, Lock, ExternalLink, ChevronRight, CreditCard, Send, Gift, ShieldCheck
 } from 'lucide-react';
 
 interface ImageGeneratorProps {
   apiKey: string;
   onHistoryUpdate: (item: HistoryItem) => void;
-  lavaUrl?: string;
   balance: number;
   onDeductBalance: (amount: number) => void;
   onReqTopUp: () => void;
@@ -55,7 +51,6 @@ const generateId = () => Math.random().toString(36).substring(2, 15) + Math.rand
 export const ImageGenerator: React.FC<ImageGeneratorProps> = ({ 
   apiKey, 
   onHistoryUpdate, 
-  lavaUrl,
   balance,
   onDeductBalance,
   onReqTopUp
@@ -237,19 +232,6 @@ export const ImageGenerator: React.FC<ImageGeneratorProps> = ({
     }, 1000);
   };
 
-  const handleLavaRedirect = () => {
-    if (lavaUrl) {
-      window.open(lavaUrl, '_blank');
-    } else {
-      alert("Ссылка на оплату не настроена.");
-    }
-  };
-
-  const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text);
-    alert("Скопировано: " + text);
-  };
-
   const isVideoResult = (activeSection === MODEL_SORA || activeSection === MODEL_TOPAZ || (resultUrl && resultUrl.match(/\.(mp4|mov|webm)(\?.*)?$/i)));
   const currentPrice = activeSection !== SECTION_SECRET ? PRICES[activeSection as ModelType] : 0;
 
@@ -323,10 +305,6 @@ export const ImageGenerator: React.FC<ImageGeneratorProps> = ({
                 {/* Features List */}
                 <div className="space-y-8">
                    <div className="space-y-4">
-                      <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                         <Terminal className="w-5 h-5 text-red-500" />
-                         Включено в пакет (1 месяц):
-                      </h3>
                       <ul className="space-y-4">
                          {[
                             "Безлимит Nano Banana Pro",
@@ -343,13 +321,6 @@ export const ImageGenerator: React.FC<ImageGeneratorProps> = ({
                    </div>
                    
                    <div className="p-5 bg-red-950/30 border border-red-500/10 rounded-xl space-y-4">
-                      <div className="flex items-start gap-2 text-red-200">
-                         <div className="mt-1"><Lock className="w-4 h-4 text-red-500" /></div>
-                         <p className="text-xs italic leading-relaxed opacity-80">
-                            "Я не стал интегрировать сюда Veo через официальное API, так как одно видео выходит в районе 80 рублей. Мы не идиоты же — мы знаем, как использовать его грамотно."
-                         </p>
-                      </div>
-                      
                       <div className="flex items-start gap-2 text-red-200 pt-2 border-t border-red-500/10">
                          <div className="mt-1"><ShieldCheck className="w-4 h-4 text-red-500" /></div>
                          <p className="text-xs leading-relaxed opacity-90">
@@ -389,53 +360,11 @@ export const ImageGenerator: React.FC<ImageGeneratorProps> = ({
                       <div className="space-y-6 animate-in fade-in zoom-in duration-300">
                          <div className="text-center space-y-2">
                             <h3 className="text-white font-bold">Оплата доступа</h3>
-                            <p className="text-xs text-gray-400">Выберите удобный способ</p>
-                         </div>
-
-                         <div className="space-y-3">
-                            {/* Lava Button */}
-                            {lavaUrl && (
-                              <button 
-                                 onClick={handleLavaRedirect}
-                                 className="w-full py-4 bg-purple-600 hover:bg-purple-500 text-white font-bold rounded-xl transition-all shadow-lg shadow-purple-900/20 flex items-center justify-center gap-2"
-                              >
-                                 <CreditCard className="w-5 h-5" />
-                                 Оплатить через Lava
-                              </button>
-                            )}
-                            
-                            {/* SBP Manual Info */}
-                            {!lavaUrl && (
-                               <div className="space-y-3">
-                                  <div className="bg-dark-950 p-3 rounded-lg border border-white/10 flex justify-between items-center">
-                                     <div className="text-xs text-gray-400">СБП / Банк</div>
-                                     <div className="text-sm font-bold text-white">{SBP_BANK}</div>
-                                  </div>
-                                  <div className="bg-dark-950 p-3 rounded-lg border border-white/10 flex justify-between items-center">
-                                     <div className="text-xs text-gray-400">Номер</div>
-                                     <div className="flex items-center gap-2">
-                                        <span className="text-sm font-bold text-white">{SBP_NUMBER}</span>
-                                        <button onClick={() => copyToClipboard(SBP_NUMBER)} className="text-gray-500 hover:text-white">
-                                           <Copy className="w-4 h-4" />
-                                        </button>
-                                     </div>
-                                  </div>
-                               </div>
-                            )}
-
-                            <div className="bg-dark-950 p-3 rounded-lg border border-white/10 flex justify-between items-center">
-                               <div className="text-xs text-gray-400">Сумма</div>
-                               <div className="flex items-center gap-2">
-                                  <span className="text-sm font-bold text-red-400">{SECRET_PRICE} ₽</span>
-                                  <button onClick={() => copyToClipboard(SECRET_PRICE.toString())} className="text-gray-500 hover:text-white">
-                                     <Copy className="w-4 h-4" />
-                                  </button>
-                               </div>
-                            </div>
+                            <p className="text-xs text-gray-400">Напишите администратору для оплаты</p>
                          </div>
 
                          <div className="p-3 bg-red-500/10 rounded-lg border border-red-500/20 text-xs text-red-200 text-center">
-                            Внимание! После оплаты обязательно отправьте чек в Telegram для получения кода доступа.
+                            Для получения реквизитов и активации нажмите кнопку ниже.
                          </div>
 
                          <button 
@@ -444,7 +373,7 @@ export const ImageGenerator: React.FC<ImageGeneratorProps> = ({
                             className="w-full py-4 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl transition-all shadow-lg shadow-blue-900/20 flex items-center justify-center gap-2"
                          >
                             {checkingPayment ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
-                            {checkingPayment ? 'Открываем Telegram...' : 'Отправить чек и получить код'}
+                            {checkingPayment ? 'Открываем Telegram...' : 'Написать в Telegram'}
                          </button>
                          
                          <button 

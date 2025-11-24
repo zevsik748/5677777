@@ -17,6 +17,9 @@ interface ErrorBoundaryState {
 
 // Error Boundary Component to catch runtime errors
 class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  // Explicitly declare state property to avoid TS errors
+  public state: ErrorBoundaryState;
+
   constructor(props: ErrorBoundaryProps) {
     super(props);
     this.state = { hasError: false, error: '' };
@@ -68,64 +71,68 @@ const AppContent: React.FC = () => {
   
   // Config State
   const [accessCode, setAccessCode] = useState<string | null>(null);
-  const [lavaUrl, setLavaUrl] = useState<string | null>(null);
 
   useEffect(() => {
     // 1. Load configuration SAFELY
-    // We access env vars explicitly so bundlers like Vite can replace them statically.
-    
-    let envApiKey: string | undefined;
-    let envAccessCode: string | undefined;
-    let envLavaUrl: string | undefined;
+    let envApiKey: string | undefined = "";
+    let envAccessCode: string | undefined = "";
 
     try {
-      // Try import.meta.env (Vite)
       // @ts-ignore
       if (typeof import.meta !== 'undefined' && import.meta.env) {
         // @ts-ignore
         envApiKey = import.meta.env.VITE_API_KEY;
         // @ts-ignore
         envAccessCode = import.meta.env.VITE_ACCESS_CODE;
+      }
+    } catch (e) {
+      console.warn("import.meta not available");
+    }
+
+    // Legacy fallback for node environments if needed, but wrapped safely
+    if (!envApiKey) {
+      try {
         // @ts-ignore
-        envLavaUrl = import.meta.env.VITE_LAVA_URL;
-      }
-    } catch (e) {}
+        if (typeof process !== 'undefined' && process.env) {
+          // @ts-ignore
+          envApiKey = process.env.VITE_API_KEY;
+          // @ts-ignore
+          envAccessCode = process.env.VITE_ACCESS_CODE;
+        }
+      } catch (e) {}
+    }
 
-    try {
-      // Try process.env (Node/Webpack fallback)
-      if (!envApiKey && typeof process !== 'undefined' && process.env) {
-        envApiKey = process.env.VITE_API_KEY;
-        envAccessCode = process.env.VITE_ACCESS_CODE;
-        envLavaUrl = process.env.VITE_LAVA_URL;
-      }
-    } catch (e) {}
-
-    // Fallback logic
     if (envApiKey) {
       setApiKey(envApiKey);
     } else {
+      // Fallback to storage if not in env
       const storedKey = localStorage.getItem(STORAGE_KEY_API_KEY);
       if (storedKey) setApiKey(storedKey);
     }
 
     setAccessCode(envAccessCode || 'admin');
-    if (envLavaUrl) setLavaUrl(envLavaUrl);
 
     // 2. Load History
-    const storedHistory = localStorage.getItem(STORAGE_KEY_HISTORY);
-    if (storedHistory) {
-      try {
+    try {
+      const storedHistory = localStorage.getItem(STORAGE_KEY_HISTORY);
+      if (storedHistory) {
         setHistory(JSON.parse(storedHistory));
-      } catch (e) {
-        console.error("Failed to parse history", e);
       }
+    } catch (e) {
+      console.error("Failed to parse history", e);
+      localStorage.removeItem(STORAGE_KEY_HISTORY);
     }
 
     // 3. Load Balance
-    const storedBalance = localStorage.getItem('kie_user_balance');
-    if (storedBalance) {
-      setBalance(parseInt(storedBalance, 10));
-    } else {
+    try {
+      const storedBalance = localStorage.getItem('kie_user_balance');
+      if (storedBalance) {
+        const parsed = parseInt(storedBalance, 10);
+        setBalance(isNaN(parsed) ? 0 : parsed);
+      } else {
+        setBalance(0);
+      }
+    } catch (e) {
       setBalance(0);
     }
 
@@ -198,7 +205,6 @@ const AppContent: React.FC = () => {
         onSave={handleTopUp} 
         mode="access-code"
         currentBalance={balance}
-        lavaUrl={lavaUrl || undefined}
         onClose={() => setIsWalletModalOpen(false)}
       />
 
@@ -257,7 +263,6 @@ const AppContent: React.FC = () => {
              <ImageGenerator 
                apiKey={apiKey} 
                onHistoryUpdate={handleHistoryUpdate}
-               lavaUrl={lavaUrl || undefined}
                balance={balance}
                onDeductBalance={handleDeductBalance}
                onReqTopUp={() => setIsWalletModalOpen(true)}
