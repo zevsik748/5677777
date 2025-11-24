@@ -28,7 +28,7 @@ import {
   Wand2, Download, Maximize2, Loader2, AlertTriangle, 
   UploadCloud, Video, Zap, X, Check,
   MonitorPlay, ExternalLink, ChevronRight, Crown,
-  Link as LinkIcon, FileVideo, Briefcase, Globe, ShieldCheck, Users, RefreshCw
+  Link as LinkIcon, FileVideo, Briefcase, Globe, ShieldCheck, Users, RefreshCw, Star, Rocket
 } from 'lucide-react';
 
 interface ImageGeneratorProps {
@@ -264,63 +264,68 @@ export const ImageGenerator: React.FC<ImageGeneratorProps> = ({
   // ------------------------------------------
   if (activeSection === SECTION_BUSINESS) {
     return (
-      <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <div className="space-y-4 md:space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-20">
          <NavigationTabs activeSection={activeSection} setActiveSection={setActiveSection} setResultData={setResultData} setError={setError} />
 
-         <div className="bg-gradient-to-br from-blue-600 to-indigo-700 p-[2px] rounded-[2.5rem] shadow-[0_0_80px_rgba(79,70,229,0.4)] relative">
-            <div className="absolute inset-0 blur-xl bg-gradient-to-r from-blue-600 to-indigo-600 opacity-50"></div>
-            <div className="bg-dark-950 rounded-[2.4rem] p-8 md:p-12 relative overflow-hidden z-10">
+         <div className="bg-gradient-to-br from-blue-600 to-indigo-700 p-[1px] rounded-[1.5rem] md:rounded-[2.5rem] shadow-[0_0_80px_rgba(79,70,229,0.3)] relative mx-auto w-full max-w-4xl">
+            <div className="absolute inset-0 blur-2xl bg-gradient-to-r from-blue-600 to-indigo-600 opacity-40"></div>
+            <div className="bg-dark-950 rounded-[1.4rem] md:rounded-[2.4rem] p-6 md:p-12 relative overflow-hidden z-10">
                
+               {/* Background Elements */}
+               <div className="absolute top-0 right-0 w-64 h-64 bg-blue-500/10 blur-[80px] rounded-full pointer-events-none"></div>
+
                {/* Header */}
-               <div className="text-center mb-10">
-                  <div className="inline-flex items-center gap-2 bg-blue-500/10 border border-blue-500/20 text-blue-400 px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-widest mb-6">
-                      <Briefcase className="w-4 h-4" /> B2B Partner
+               <div className="text-center mb-8 md:mb-10 relative">
+                  <div className="inline-flex items-center gap-2 bg-blue-500/10 border border-blue-500/20 text-blue-400 px-4 py-1.5 rounded-full text-[10px] md:text-xs font-bold uppercase tracking-widest mb-4 md:mb-6">
+                      <Rocket className="w-3 h-3 md:w-4 md:h-4" /> Trend 2025
                   </div>
-                  <h2 className="text-4xl md:text-5xl font-black text-white mb-4">
+                  <h2 className="text-3xl md:text-5xl font-black text-white mb-4 leading-tight">
                      ГОТОВЫЙ БИЗНЕС <br/>
                      <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-400">ПОД КЛЮЧ</span>
                   </h2>
-                  <p className="text-gray-400 max-w-xl mx-auto">
-                     Тренд 2025 года. Забудь про блокировки VPN и сложные настройки. Я сделаю всё за тебя.
+                  <p className="text-gray-400 max-w-xl mx-auto text-sm md:text-base leading-relaxed">
+                     Забудь про блокировки VPN и сложные настройки. Я сделаю всё за тебя.
+                     Твой личный AI-сервис — это независимость и стабильность.
                   </p>
                </div>
 
-               {/* Features */}
-               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
-                  <div className="bg-white/5 border border-white/10 p-6 rounded-2xl hover:bg-white/10 transition-colors">
-                     <div className="w-12 h-12 bg-blue-500/20 rounded-xl flex items-center justify-center mb-4 text-blue-400">
-                        <Globe className="w-6 h-6" />
+               {/* Features Grid */}
+               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 mb-8 md:mb-12">
+                  <div className="bg-white/5 border border-white/10 p-5 md:p-6 rounded-2xl hover:bg-white/10 transition-colors group">
+                     <div className="w-10 h-10 md:w-12 md:h-12 bg-blue-500/20 rounded-xl flex items-center justify-center mb-4 text-blue-400 group-hover:scale-110 transition-transform">
+                        <Globe className="w-5 h-5 md:w-6 md:h-6" />
                      </div>
-                     <h3 className="text-xl font-bold text-white mb-2">Упаковка в сайт</h3>
-                     <p className="text-sm text-gray-400">Подключу любые нейросети (Gemini, ChatGPT, Midjourney) к твоему личному сайту.</p>
+                     <h3 className="text-lg md:text-xl font-bold text-white mb-2">Упаковка в сайт</h3>
+                     <p className="text-xs md:text-sm text-gray-400">Подключу любые нейросети (Gemini, ChatGPT, Midjourney) к твоему личному сайту. Полностью готовое решение.</p>
                   </div>
-                  <div className="bg-white/5 border border-white/10 p-6 rounded-2xl hover:bg-white/10 transition-colors">
-                     <div className="w-12 h-12 bg-cyan-500/20 rounded-xl flex items-center justify-center mb-4 text-cyan-400">
-                        <ShieldCheck className="w-6 h-6" />
+                  <div className="bg-white/5 border border-white/10 p-5 md:p-6 rounded-2xl hover:bg-white/10 transition-colors group">
+                     <div className="w-10 h-10 md:w-12 md:h-12 bg-cyan-500/20 rounded-xl flex items-center justify-center mb-4 text-cyan-400 group-hover:scale-110 transition-transform">
+                        <ShieldCheck className="w-5 h-5 md:w-6 md:h-6" />
                      </div>
-                     <h3 className="text-xl font-bold text-white mb-2">Без блокировок</h3>
-                     <p className="text-sm text-gray-400">Доступы к VPN постоянно блокируют, а с собственным сервисом таких проблем не будет.</p>
+                     <h3 className="text-lg md:text-xl font-bold text-white mb-2">Без блокировок</h3>
+                     <p className="text-xs md:text-sm text-gray-400">Доступы к VPN постоянно блокируют, а с собственным сервисом таких проблем не будет никогда.</p>
                   </div>
-                  <div className="bg-white/5 border border-white/10 p-6 rounded-2xl hover:bg-white/10 transition-colors">
-                     <div className="w-12 h-12 bg-indigo-500/20 rounded-xl flex items-center justify-center mb-4 text-indigo-400">
-                        <Users className="w-6 h-6" />
+                  <div className="bg-white/5 border border-white/10 p-5 md:p-6 rounded-2xl hover:bg-white/10 transition-colors group">
+                     <div className="w-10 h-10 md:w-12 md:h-12 bg-indigo-500/20 rounded-xl flex items-center justify-center mb-4 text-indigo-400 group-hover:scale-110 transition-transform">
+                        <Users className="w-5 h-5 md:w-6 md:h-6" />
                      </div>
-                     <h3 className="text-xl font-bold text-white mb-2">Трафик и Клиенты</h3>
-                     <p className="text-sm text-gray-400">Покажу, как гнать трафик и монетизировать этот инструмент.</p>
+                     <h3 className="text-lg md:text-xl font-bold text-white mb-2">Трафик и Клиенты</h3>
+                     <p className="text-xs md:text-sm text-gray-400">Покажу, как гнать трафик и монетизировать этот инструмент. Полное сопровождение.</p>
                   </div>
                </div>
 
-               {/* CTA */}
-               <div className="bg-gradient-to-r from-dark-900 to-dark-800 border border-white/10 rounded-2xl p-8 flex flex-col md:flex-row items-center justify-between gap-6">
-                  <div className="text-center md:text-left">
-                     <h4 className="text-2xl font-bold text-white mb-2">Готов обсудить проект?</h4>
-                     <p className="text-gray-400 text-sm">Напиши мне в Telegram, разберем твою идею и условия.</p>
+               {/* Call to Action */}
+               <div className="bg-gradient-to-r from-dark-900 to-dark-800 border border-white/10 rounded-2xl p-6 md:p-8 flex flex-col md:flex-row items-center justify-between gap-6 relative overflow-hidden">
+                  <div className="absolute inset-0 bg-blue-500/5"></div>
+                  <div className="text-center md:text-left relative z-10">
+                     <h4 className="text-xl md:text-2xl font-bold text-white mb-2">Готов обсудить проект?</h4>
+                     <p className="text-gray-400 text-xs md:text-sm">Напиши мне в Telegram, разберем твою идею и условия.</p>
                   </div>
                   <a 
                     href={SECRET_TELEGRAM_LINK}
                     target="_blank"
                     rel="noreferrer"
-                    className="px-8 py-4 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl transition-all shadow-lg hover:shadow-blue-500/30 flex items-center gap-2 whitespace-nowrap"
+                    className="w-full md:w-auto px-8 py-4 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl transition-all shadow-lg hover:shadow-blue-500/30 flex items-center justify-center gap-2 whitespace-nowrap relative z-10"
                   >
                      <Briefcase className="w-5 h-5" />
                      Обсудить проект
@@ -338,55 +343,75 @@ export const ImageGenerator: React.FC<ImageGeneratorProps> = ({
   // ------------------------------------------
   if (activeSection === SECTION_FULL_ACCESS) {
     return (
-      <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <div className="space-y-4 md:space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-20">
         <NavigationTabs activeSection={activeSection} setActiveSection={setActiveSection} setResultData={setResultData} setError={setError} />
 
         {/* PRO CARD */}
-        <div className="bg-gradient-to-br from-yellow-500 via-orange-500 to-red-500 p-[2px] rounded-[2.5rem] shadow-[0_0_80px_rgba(234,179,8,0.4)] relative">
+        <div className="bg-gradient-to-br from-yellow-500 via-orange-500 to-red-500 p-[1px] md:p-[2px] rounded-[1.5rem] md:rounded-[2.5rem] shadow-[0_0_80px_rgba(234,179,8,0.4)] relative w-full max-w-4xl mx-auto">
           <div className="absolute inset-0 blur-xl bg-gradient-to-r from-yellow-500 to-red-600 opacity-50"></div>
-          <div className="bg-dark-950 rounded-[2.4rem] p-6 md:p-10 text-center relative overflow-hidden z-10">
+          <div className="bg-dark-950 rounded-[1.4rem] md:rounded-[2.4rem] p-6 md:p-12 text-center relative overflow-hidden z-10">
              
-             {/* Particles Effect */}
+             {/* Dynamic background effect */}
              <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-full bg-[radial-gradient(circle_at_50%_0%,rgba(234,179,8,0.15),transparent_70%)] pointer-events-none"></div>
 
-             <div className="inline-flex items-center gap-2 bg-yellow-500/10 border border-yellow-500/20 text-yellow-400 px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-widest mb-6 animate-pulse">
-                <Crown className="w-4 h-4" /> Google Ultra AI
+             {/* Live Indicator */}
+             <div className="absolute top-6 right-6 flex items-center gap-2">
+                <span className="relative flex h-3 w-3">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
+                </span>
+                <span className="text-[10px] font-bold text-green-500 uppercase tracking-widest hidden sm:block">Live</span>
              </div>
 
-             <h2 className="text-4xl md:text-6xl font-black text-white mb-6 leading-tight">
+             {/* Badge */}
+             <div className="inline-flex items-center gap-2 bg-yellow-500/10 border border-yellow-500/20 text-yellow-400 px-4 py-1.5 rounded-full text-[10px] md:text-xs font-bold uppercase tracking-widest mb-6 animate-pulse">
+                <Crown className="w-3 h-3 md:w-4 md:h-4" /> Google Ultra AI
+             </div>
+
+             {/* Title */}
+             <h2 className="text-3xl md:text-6xl font-black text-white mb-6 leading-tight">
                PRO <span className="text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-orange-400">UNLIMITED</span>
              </h2>
              
-             <div className="bg-white/5 border border-white/10 rounded-2xl p-6 mb-8 max-w-3xl mx-auto backdrop-blur-sm">
-                <p className="text-gray-300 text-lg leading-relaxed mb-4">
-                  Это эксклюзивная <b>Складчина</b> на доступ к мощностям Google Ultra AI. 
-                  Вы получаете <span className="text-yellow-400 font-bold">БЕЗЛИМИТНЫЙ</span> доступ к генерациям Nano Banana Pro и Veo на месяц.
+             {/* Description Box */}
+             <div className="bg-white/5 border border-white/10 rounded-2xl p-5 md:p-8 mb-8 max-w-3xl mx-auto backdrop-blur-sm text-left">
+                <p className="text-gray-200 text-sm md:text-lg leading-relaxed mb-6 font-medium text-center">
+                  Эксклюзивная <span className="text-yellow-400 font-bold uppercase">Складчина</span> на доступ к мощностям Google Ultra AI.
+                  <br className="hidden md:block"/> Вы получаете <span className="underline decoration-yellow-500 underline-offset-4">БЕЗЛИМИТНЫЙ</span> доступ к Nano Banana Pro и Veo на месяц.
                 </p>
-                <div className="flex flex-col gap-3 text-sm text-gray-400 bg-black/20 p-4 rounded-xl">
-                    <div className="flex items-start gap-3 text-left">
-                       <RefreshCw className="w-5 h-5 text-banana-500 shrink-0 mt-0.5" />
-                       <p>Если на аккаунте заканчиваются кредиты — я мгновенно выдаю <b>НОВЫЙ</b> аккаунт. Доступ не прерывается.</p>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="bg-black/30 p-4 rounded-xl flex items-start gap-3 border border-white/5">
+                        <RefreshCw className="w-5 h-5 text-banana-500 shrink-0 mt-0.5" />
+                        <div className="text-xs md:text-sm text-gray-300">
+                           <span className="text-white font-bold block mb-1">Вечный двигатель</span>
+                           Если кредиты заканчиваются — я мгновенно выдаю <b>НОВЫЙ</b> аккаунт. Доступ не прерывается.
+                        </div>
                     </div>
-                    <div className="flex items-start gap-3 text-left">
-                       <Users className="w-5 h-5 text-banana-500 shrink-0 mt-0.5" />
-                       <p>Беспроблемный доступ: количество участников складчины уже приближается к цифре <b>100</b>.</p>
+                    <div className="bg-black/30 p-4 rounded-xl flex items-start gap-3 border border-white/5">
+                        <Users className="w-5 h-5 text-banana-500 shrink-0 mt-0.5" />
+                        <div className="text-xs md:text-sm text-gray-300">
+                           <span className="text-white font-bold block mb-1">Комьюнити</span>
+                           Беспроблемный доступ участников складчины приближается к цифре <span className="text-banana-400 font-mono text-lg font-bold">100</span>.
+                        </div>
                     </div>
                 </div>
              </div>
 
-             <div className="flex flex-col items-center gap-2 mb-8">
-                <div className="flex items-center gap-3">
-                   <span className="text-6xl md:text-7xl font-black text-white tracking-tighter">1000 ₽</span>
-                   <span className="text-xl text-gray-400 font-medium">/ месяц</span>
+             {/* Price & Button */}
+             <div className="flex flex-col items-center gap-3 mb-8">
+                <div className="flex items-end gap-2">
+                   <span className="text-5xl md:text-7xl font-black text-white tracking-tighter">1000 ₽</span>
+                   <span className="text-lg md:text-xl text-gray-400 font-medium mb-1.5">/ месяц</span>
                 </div>
-                <span className="text-sm text-green-400 font-bold bg-green-900/30 px-3 py-1 rounded-full border border-green-500/30">
-                   Гарантия замены аккаунта
+                <span className="text-[10px] md:text-xs text-green-400 font-bold bg-green-900/30 px-3 py-1 rounded-full border border-green-500/30 flex items-center gap-1">
+                   <ShieldCheck className="w-3 h-3" /> Гарантия замены аккаунта
                 </span>
              </div>
 
              <button 
                onClick={onReqTopUp}
-               className="w-full max-w-md py-5 bg-gradient-to-r from-yellow-500 to-red-600 text-white font-black text-xl rounded-2xl shadow-[0_10px_40px_rgba(234,179,8,0.3)] hover:shadow-[0_20px_60px_rgba(234,179,8,0.5)] hover:scale-105 transition-all flex items-center justify-center gap-3 mx-auto"
+               className="w-full max-w-md py-4 md:py-5 bg-gradient-to-r from-yellow-500 to-red-600 text-white font-black text-lg md:text-xl rounded-2xl shadow-[0_10px_40px_rgba(234,179,8,0.3)] hover:shadow-[0_20px_60px_rgba(234,179,8,0.5)] active:scale-95 transition-all flex items-center justify-center gap-3 mx-auto"
              >
                <Zap className="w-6 h-6 fill-current" />
                ВСТУПИТЬ В СКЛАДЧИНУ
@@ -394,34 +419,40 @@ export const ImageGenerator: React.FC<ImageGeneratorProps> = ({
           </div>
         </div>
 
-        {/* PERSONAL ACCOUNT OFFER */}
-        <div className="border border-white/10 rounded-[2rem] bg-dark-900/50 p-8 relative overflow-hidden group">
-            <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:opacity-20 transition-opacity">
-               <Crown className="w-32 h-32 text-purple-500" />
+        {/* PERSONAL ACCOUNT OFFER CARD */}
+        <div className="w-full max-w-4xl mx-auto border border-purple-500/20 rounded-[1.5rem] md:rounded-[2rem] bg-dark-900/50 p-6 md:p-8 relative overflow-hidden group hover:border-purple-500/40 transition-colors">
+            {/* Background Icon */}
+            <div className="absolute -right-4 -top-4 opacity-10 group-hover:opacity-20 transition-opacity">
+               <Star className="w-40 h-40 text-purple-500 rotate-12" />
             </div>
             
-            <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-8">
+            <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-6 md:gap-8">
                <div className="text-center md:text-left">
-                  <h3 className="text-2xl font-bold text-white mb-2 flex items-center justify-center md:justify-start gap-2">
-                     Личный Аккаунт <span className="text-purple-400 text-sm border border-purple-500/30 px-2 py-0.5 rounded bg-purple-500/10">PREMIUM</span>
+                  <h3 className="text-xl md:text-2xl font-bold text-white mb-3 flex items-center justify-center md:justify-start gap-3">
+                     Личный Аккаунт <span className="text-purple-300 text-[10px] font-black border border-purple-500/30 px-2 py-0.5 rounded bg-purple-500/20 tracking-wider">PREMIUM</span>
                   </h3>
-                  <p className="text-gray-400 text-sm max-w-md mb-4">
-                     Для тех, кто хочет полный контроль. Гарантированный безлимит на месяц.
-                     Включено 25,000 кредитов (~2500 видео).
-                  </p>
-                  <p className="text-xs text-purple-300 font-bold">
-                     🔥 Даже если кредиты закончатся — выдам ЕЩЁ ОДИН аккаунт бесплатно.
+                  <div className="space-y-2 mb-4 text-sm text-gray-400 max-w-md">
+                     <p>Гарантированный безлимит на месяц в одни руки.</p>
+                     <p className="flex items-center justify-center md:justify-start gap-2 text-white font-medium">
+                        <Check className="w-4 h-4 text-purple-500" /> Включено 25,000 кредитов (~2500 видео)
+                     </p>
+                  </div>
+                  <p className="text-xs text-purple-300 font-bold bg-purple-900/20 p-2 rounded-lg inline-block border border-purple-500/20">
+                     🔥 Если кредиты закончатся — выдам ЕЩЁ ОДИН аккаунт бесплатно.
                   </p>
                </div>
                
-               <div className="flex flex-col items-center gap-3 shrink-0">
+               <div className="flex flex-col items-center gap-3 shrink-0 w-full md:w-auto">
                   <span className="text-3xl font-black text-white">4000 ₽</span>
-                  <button 
-                     onClick={() => window.open(SECRET_TELEGRAM_LINK, '_blank')}
-                     className="px-6 py-3 bg-white/10 hover:bg-purple-600 border border-purple-500/50 hover:border-purple-500 text-white font-bold rounded-xl transition-all"
+                  <a 
+                     href={SECRET_TELEGRAM_LINK}
+                     target="_blank"
+                     rel="noreferrer"
+                     className="w-full md:w-auto px-6 py-3 bg-white/5 hover:bg-purple-600 border border-purple-500/30 hover:border-purple-500 text-white font-bold rounded-xl transition-all flex items-center justify-center gap-2"
                   >
+                     <Briefcase className="w-4 h-4" />
                      Купить Личный
-                  </button>
+                  </a>
                </div>
             </div>
         </div>
@@ -432,70 +463,65 @@ export const ImageGenerator: React.FC<ImageGeneratorProps> = ({
   const currentPrice = PRICES[activeSection as ModelType];
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-4 md:space-y-8 pb-20">
       
       <NavigationTabs activeSection={activeSection} setActiveSection={setActiveSection} setResultData={setResultData} setError={setError} />
 
       {/* MAIN TOOLS INTERFACE */}
-      <div className="bg-dark-900/40 backdrop-blur-xl border border-white/10 rounded-[2.5rem] p-1 shadow-2xl relative overflow-hidden ring-1 ring-white/5">
+      <div className="bg-dark-900/40 backdrop-blur-xl border border-white/10 rounded-[1.5rem] md:rounded-[2.5rem] p-1 shadow-2xl relative overflow-hidden ring-1 ring-white/5 w-full max-w-4xl mx-auto">
         <div className={`absolute top-0 left-0 right-0 h-1 opacity-75 ${
            activeSection === MODEL_NANO ? 'bg-gradient-to-r from-transparent via-banana-500 to-transparent' : 
            activeSection === MODEL_SORA ? 'bg-gradient-to-r from-transparent via-pink-500 to-transparent' :
            'bg-gradient-to-r from-transparent via-cyan-400 to-transparent'
         }`}></div>
 
-        <div className="bg-dark-950/80 rounded-[2.3rem] p-6 md:p-10">
+        <div className="bg-dark-950/80 rounded-[1.4rem] md:rounded-[2.3rem] p-5 md:p-10">
             
             {/* Header & Price */}
             <div className="flex flex-col md:flex-row md:items-start justify-between gap-6 mb-8">
-               <div className="flex-1">
+               <div className="flex-1 text-center md:text-left">
                   {activeSection === MODEL_NANO && (
                      <>
-                        <h2 className="text-3xl md:text-4xl font-extrabold text-white">Nano <span className="text-banana-500">Banana Pro</span></h2>
-                        <p className="text-gray-400 mt-2 text-sm">Профессиональная нейрофотосессия для брендов.</p>
+                        <h2 className="text-2xl md:text-4xl font-extrabold text-white">Nano <span className="text-banana-500">Banana Pro</span></h2>
+                        <p className="text-gray-400 mt-2 text-xs md:text-sm">Профессиональная нейрофотосессия для брендов.</p>
                      </>
                   )}
                   {activeSection === MODEL_SORA && (
                      <>
-                        <h2 className="text-3xl md:text-4xl font-extrabold text-white">Sora <span className="text-pink-500">Watermark Remover</span></h2>
-                        <p className="text-gray-400 mt-2 text-sm">Очистка видео от водяных знаков.</p>
+                        <h2 className="text-2xl md:text-4xl font-extrabold text-white">Sora <span className="text-pink-500">Watermark Remover</span></h2>
+                        <p className="text-gray-400 mt-2 text-xs md:text-sm">Очистка видео от водяных знаков.</p>
                      </>
                   )}
                   {activeSection === MODEL_TOPAZ && (
                      <>
-                        <h2 className="text-3xl md:text-4xl font-extrabold text-white">Topaz <span className="text-cyan-400">Video Upscale</span></h2>
-                        <p className="text-gray-400 mt-2 text-sm">Улучшение качества видео до 4K (AI Restore).</p>
+                        <h2 className="text-2xl md:text-4xl font-extrabold text-white">Topaz <span className="text-cyan-400">Video Upscale</span></h2>
+                        <p className="text-gray-400 mt-2 text-xs md:text-sm">Улучшение качества видео до 4K (AI Restore).</p>
                      </>
                   )}
                </div>
                
-               {/* Super Cool Price Display */}
+               {/* Price Display - FIXED PRICE ONLY */}
                <div 
-                  className="relative group cursor-pointer transform hover:scale-105 transition-transform duration-300" 
+                  className="relative group cursor-pointer transform hover:scale-105 transition-transform duration-300 mx-auto md:mx-0 w-full md:w-auto" 
                   onClick={onReqTopUp}
                >
-                  <div className={`absolute -inset-0.5 bg-gradient-to-r blur-lg opacity-60 group-hover:opacity-100 transition duration-500 animate-pulse ${
+                  <div className={`absolute -inset-0.5 bg-gradient-to-r blur-lg opacity-40 group-hover:opacity-80 transition duration-500 animate-pulse ${
                      activeSection === MODEL_NANO ? 'from-yellow-400 via-orange-500 to-red-500' :
                      activeSection === MODEL_SORA ? 'from-pink-400 via-purple-500 to-indigo-500' :
                      'from-cyan-400 via-blue-500 to-teal-400'
                   }`}></div>
                   
-                  <div className="relative bg-dark-900 border border-white/20 px-8 py-4 rounded-2xl flex flex-col items-center shadow-2xl">
-                     <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-red-600 text-white text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full shadow-lg border border-red-400 animate-bounce">
-                        HOT SALE
-                     </div>
-                     <div className="flex items-center gap-2 opacity-50 mb-1">
-                        <span className="text-sm line-through decoration-red-500 decoration-2 font-mono text-gray-400">
-                           {currentPrice * 5} ₽
-                        </span>
-                     </div>
+                  <div className="relative bg-dark-900 border border-white/20 px-6 md:px-8 py-3 md:py-4 rounded-xl md:rounded-2xl flex flex-row md:flex-col items-center justify-between md:justify-center gap-4 md:gap-0 shadow-2xl">
+                     <span className="text-[10px] text-gray-400 font-bold uppercase tracking-widest md:hidden">
+                        Стоимость
+                     </span>
                      <div className="flex items-baseline gap-1">
-                        <span className={`text-5xl font-black leading-none tracking-tighter ${balance < currentPrice ? 'text-red-500' : 'text-white'}`}>
+                        <span className={`text-3xl md:text-5xl font-black leading-none tracking-tighter ${balance < currentPrice ? 'text-red-500' : 'text-white'}`}>
                            {currentPrice}
                         </span>
-                        <span className="text-xl font-bold text-gray-400">₽</span>
+                        <span className="text-lg md:text-xl font-bold text-gray-400">₽</span>
                      </div>
-                     <span className="text-[9px] text-gray-400 font-bold uppercase tracking-widest mt-1">
+                     <span className="text-[9px] text-gray-500 font-bold uppercase tracking-widest mt-1 hidden md:block">
                         за генерацию
                      </span>
                   </div>
@@ -504,7 +530,7 @@ export const ImageGenerator: React.FC<ImageGeneratorProps> = ({
 
             {/* NANO FORM */}
             {activeSection === MODEL_NANO && (
-              <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+              <div className="space-y-6 md:space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
                  {/* Prompt Area */}
                  <div className="space-y-3">
                     <div className="flex justify-between items-end">
@@ -516,7 +542,7 @@ export const ImageGenerator: React.FC<ImageGeneratorProps> = ({
                     <textarea
                       value={prompt}
                       onChange={(e) => setPrompt(e.target.value)}
-                      className="w-full bg-dark-900/50 border border-white/10 text-gray-100 rounded-2xl p-5 h-32 text-sm leading-relaxed focus:ring-2 focus:ring-banana-500/30 outline-none resize-none placeholder:text-dark-700"
+                      className="w-full bg-dark-900/50 border border-white/10 text-gray-100 rounded-2xl p-4 md:p-5 h-32 md:h-32 text-sm leading-relaxed focus:ring-2 focus:ring-banana-500/30 outline-none resize-none placeholder:text-dark-700 shadow-inner"
                       placeholder="Опишите сцену, освещение, стиль..."
                     />
                  </div>
@@ -565,7 +591,7 @@ export const ImageGenerator: React.FC<ImageGeneratorProps> = ({
 
                     <div className="space-y-3">
                         <label className="text-xs font-bold text-gray-500 uppercase tracking-wider ml-1">Референс (Фото)</label>
-                        <div className="relative h-full min-h-[120px] group">
+                        <div className="relative h-32 md:h-full min-h-[120px] group">
                            <input type="file" accept="image/*" onChange={(e) => {
                              if(e.target.files?.[0]) handleFileRead(e.target.files[0], setRefImage)
                            }} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20" />
@@ -587,16 +613,16 @@ export const ImageGenerator: React.FC<ImageGeneratorProps> = ({
             {/* SORA FORM */}
             {activeSection === MODEL_SORA && (
                <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                  <div className="flex bg-dark-950 p-1 rounded-xl w-fit border border-white/5 mx-auto">
+                  <div className="flex bg-dark-950 p-1 rounded-xl w-full md:w-fit border border-white/5 md:mx-auto">
                      <button 
                        onClick={() => setSoraMode('link')}
-                       className={`px-6 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2 ${soraMode === 'link' ? 'bg-pink-600 text-white shadow-lg' : 'text-gray-400 hover:text-white'}`}
+                       className={`flex-1 md:flex-none px-6 py-2 rounded-lg text-sm font-bold transition-all flex items-center justify-center gap-2 ${soraMode === 'link' ? 'bg-pink-600 text-white shadow-lg' : 'text-gray-400 hover:text-white'}`}
                      >
                        <LinkIcon className="w-4 h-4" /> По ссылке
                      </button>
                      <button 
                        onClick={() => setSoraMode('file')}
-                       className={`px-6 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2 ${soraMode === 'file' ? 'bg-pink-600 text-white shadow-lg' : 'text-gray-400 hover:text-white'}`}
+                       className={`flex-1 md:flex-none px-6 py-2 rounded-lg text-sm font-bold transition-all flex items-center justify-center gap-2 ${soraMode === 'file' ? 'bg-pink-600 text-white shadow-lg' : 'text-gray-400 hover:text-white'}`}
                      >
                        <FileVideo className="w-4 h-4" /> Файл
                      </button>
@@ -693,11 +719,11 @@ export const ImageGenerator: React.FC<ImageGeneratorProps> = ({
             )}
 
             {/* GENERATE BUTTON */}
-            <div className="mt-10 pt-6 border-t border-white/5">
+            <div className="mt-8 md:mt-10 pt-6 border-t border-white/5">
                <button
                   onClick={handleGenerate}
                   disabled={loading}
-                  className={`w-full py-5 font-extrabold text-lg uppercase tracking-wide rounded-2xl shadow-xl disabled:opacity-50 disabled:cursor-not-allowed transition-all transform hover:-translate-y-1 active:scale-[0.98] flex items-center justify-center gap-3 ${
+                  className={`w-full py-5 font-extrabold text-lg uppercase tracking-wide rounded-xl md:rounded-2xl shadow-xl disabled:opacity-50 disabled:cursor-not-allowed transition-all transform hover:-translate-y-1 active:scale-[0.98] flex items-center justify-center gap-3 ${
                      activeSection === MODEL_NANO ? 'bg-banana-500 text-dark-950 hover:bg-banana-400' :
                      activeSection === MODEL_SORA ? 'bg-pink-600 text-white hover:bg-pink-500' :
                      'bg-cyan-500 text-dark-950 hover:bg-cyan-400'
@@ -715,14 +741,14 @@ export const ImageGenerator: React.FC<ImageGeneratorProps> = ({
 
       {/* RESULT AREA - Visible whenever there is a resultData */}
       {(resultData || error) && (
-         <div ref={resultRef} className="animate-in fade-in slide-in-from-bottom-8 duration-500 scroll-mt-24">
+         <div ref={resultRef} className="animate-in fade-in slide-in-from-bottom-8 duration-500 scroll-mt-24 w-full max-w-4xl mx-auto">
             {error ? (
                 <div className="bg-red-900/20 border border-red-500/30 p-6 rounded-2xl text-center text-red-200">
                    <AlertTriangle className="w-8 h-8 mx-auto mb-2 text-red-500" />
                    {error}
                 </div>
             ) : (
-                <div className="bg-dark-900 rounded-[2rem] overflow-hidden border border-white/10 shadow-2xl relative group">
+                <div className="bg-dark-900 rounded-[1.5rem] md:rounded-[2rem] overflow-hidden border border-white/10 shadow-2xl relative group">
                    <div className="p-4 bg-black/50 flex justify-end gap-2 backdrop-blur absolute w-full z-10 top-0 left-0 opacity-0 group-hover:opacity-100 transition-opacity">
                       <a href={resultData!.url} target="_blank" rel="noreferrer" className="p-2 bg-white/10 rounded-full hover:bg-white/20 text-white"><Maximize2 className="w-5 h-5" /></a>
                       <a href={resultData!.url} download className="p-2 bg-banana-500 rounded-full text-black hover:bg-banana-400"><Download className="w-5 h-5" /></a>
@@ -844,14 +870,14 @@ const NavigationTabs = ({
   setResultData: (d: any) => void,
   setError: (e: any) => void
 }) => (
-   <div className="flex justify-center overflow-x-auto pb-2 scrollbar-hide">
-      <div className="bg-dark-900 p-1.5 rounded-2xl border border-white/10 flex shadow-2xl">
+   <div className="flex justify-start md:justify-center overflow-x-auto pb-4 scrollbar-hide -mx-4 px-4 md:mx-0 md:px-0">
+      <div className="bg-dark-900 p-1.5 rounded-2xl border border-white/10 flex shadow-2xl min-w-max">
          {[
             { id: MODEL_NANO, label: 'Nano Pro', icon: Wand2, color: 'text-banana-500' },
-            { id: MODEL_SORA, label: 'Sora Remove', icon: Video, color: 'text-pink-500' },
-            { id: MODEL_TOPAZ, label: 'Topaz Upscale', icon: MonitorPlay, color: 'text-cyan-400' },
-            { id: SECTION_FULL_ACCESS, label: 'PRO UNLIMITED', icon: Crown, color: 'text-yellow-400' },
-            { id: SECTION_BUSINESS, label: 'Бизнес под ключ', icon: Briefcase, color: 'text-blue-400' },
+            { id: MODEL_SORA, label: 'Sora', icon: Video, color: 'text-pink-500' },
+            { id: MODEL_TOPAZ, label: 'Topaz', icon: MonitorPlay, color: 'text-cyan-400' },
+            { id: SECTION_FULL_ACCESS, label: 'UNLIMITED', icon: Crown, color: 'text-yellow-400' },
+            { id: SECTION_BUSINESS, label: 'Бизнес', icon: Briefcase, color: 'text-blue-400' },
          ].map((tab) => (
             <button
                key={tab.id}
@@ -860,13 +886,13 @@ const NavigationTabs = ({
                   setResultData(null); 
                   setError(null);
                }}
-               className={`flex items-center gap-2 px-4 md:px-6 py-3 rounded-xl text-xs md:text-sm font-bold transition-all duration-300 ${
+               className={`flex items-center gap-2 px-3 md:px-5 py-2.5 md:py-3 rounded-xl text-xs md:text-sm font-bold transition-all duration-300 ${
                   activeSection === tab.id 
                      ? 'bg-dark-800 text-white shadow-lg border border-white/5' 
                      : 'text-gray-500 hover:text-gray-300 hover:bg-white/5'
                }`}
             >
-               <tab.icon className={`w-4 h-4 ${activeSection === tab.id ? tab.color : 'text-gray-600'}`} />
+               <tab.icon className={`w-3.5 h-3.5 md:w-4 md:h-4 ${activeSection === tab.id ? tab.color : 'text-gray-600'}`} />
                <span className="whitespace-nowrap">{tab.label}</span>
             </button>
          ))}

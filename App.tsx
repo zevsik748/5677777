@@ -1,11 +1,10 @@
-
-import React, { useState, useEffect, ReactNode } from 'react';
+import React, { useState, useEffect, ReactNode, Component, ErrorInfo } from 'react';
 import { ApiKeyModal } from './components/ApiKeyModal';
 import { ImageGenerator } from './components/ImageGenerator';
 import { HistorySidebar } from './components/HistorySidebar';
 import { STORAGE_KEY_API_KEY, STORAGE_KEY_HISTORY, SECRET_TELEGRAM_LINK } from './constants';
 import { HistoryItem } from './types';
-import { Zap, Clock, Wallet, AlertTriangle, ExternalLink, Bot } from 'lucide-react';
+import { Zap, Clock, Wallet, AlertTriangle, ExternalLink, Bot, Send } from 'lucide-react';
 
 interface ErrorBoundaryProps {
   children?: ReactNode;
@@ -16,7 +15,7 @@ interface ErrorBoundaryState {
   error: string;
 }
 
-class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
+class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
   constructor(props: ErrorBoundaryProps) {
     super(props);
     this.state = { hasError: false, error: "" };
@@ -26,10 +25,12 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
     return { hasError: true, error: error.message };
   }
 
-  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     console.error("ErrorBoundary caught an error", error, errorInfo);
-    // Auto-clear history on crash to prevent loop
-    localStorage.removeItem(STORAGE_KEY_HISTORY);
+    // Auto-clear history on crash to prevent loop - but only if it seems severe
+    try {
+      localStorage.removeItem(STORAGE_KEY_HISTORY);
+    } catch(e) {}
   }
 
   render() {
@@ -43,7 +44,7 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
             <p className="text-xs text-gray-500">История очищена для восстановления работы.</p>
             <button 
               onClick={() => {
-                localStorage.clear(); // Nuclear option
+                try { localStorage.clear(); } catch(e) {}
                 window.location.reload();
               }}
               className="px-6 py-2 bg-red-600 hover:bg-red-500 text-white rounded-lg font-bold transition-colors"
@@ -59,6 +60,17 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
   }
 }
 
+// Utility for safe JSON parsing
+const safeJsonParse = <T,>(str: string | null, fallback: T): T => {
+  if (!str) return fallback;
+  try {
+    const res = JSON.parse(str);
+    return res as T;
+  } catch (e) {
+    return fallback;
+  }
+};
+
 export default function App() {
   const [apiKey, setApiKey] = useState('');
   const [balance, setBalance] = useState(0); 
@@ -72,19 +84,12 @@ export default function App() {
     if (storedKey) setApiKey(storedKey);
 
     const storedHistory = localStorage.getItem(STORAGE_KEY_HISTORY);
-    if (storedHistory) {
-      try {
-        const parsed = JSON.parse(storedHistory);
-        if (Array.isArray(parsed)) {
-          setHistory(parsed);
-        } else {
-          console.warn("Stored history is not an array, resetting.");
-          setHistory([]);
-        }
-      } catch (e) {
-        console.error("Failed to parse history", e);
-        setHistory([]);
-      }
+    // Extra safety: validate the parsed history is actually an array
+    const parsedHistory = safeJsonParse<HistoryItem[]>(storedHistory, []);
+    if (Array.isArray(parsedHistory)) {
+      setHistory(parsedHistory);
+    } else {
+      setHistory([]);
     }
     
     // Simulating balance
@@ -175,14 +180,24 @@ export default function App() {
         <main className="pt-20 pb-12 px-4 max-w-5xl mx-auto">
           
           {/* INFO BANNER */}
-          <div className="mb-6 flex flex-col md:flex-row gap-2 justify-center items-center text-sm font-medium">
-             <a href={SECRET_TELEGRAM_LINK} target="_blank" rel="noreferrer" className="flex items-center gap-2 px-4 py-2 bg-blue-500/10 hover:bg-blue-500/20 text-blue-300 rounded-lg transition-colors border border-blue-500/20">
-                <ExternalLink className="w-4 h-4" />
+          <div className="mb-6 flex flex-col sm:flex-row gap-3 justify-center items-center text-xs md:text-sm font-medium">
+             <a 
+               href={SECRET_TELEGRAM_LINK} 
+               target="_blank" 
+               rel="noreferrer" 
+               className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 bg-blue-500/10 hover:bg-blue-500/20 text-blue-300 rounded-lg transition-colors border border-blue-500/20"
+             >
+                <Send className="w-3 h-3 md:w-4 md:h-4" />
                 Подписывайся на канал: @ferixdi_ai
              </a>
-             <a href="https://t.me/imgbananobot" target="_blank" rel="noreferrer" className="flex items-center gap-2 px-4 py-2 bg-banana-500/10 hover:bg-banana-500/20 text-banana-500 rounded-lg transition-colors border border-banana-500/20">
-                <Bot className="w-4 h-4" />
-                Бесплатный бот (Nano): @imgbananobot
+             <a 
+               href="https://t.me/imgbananobot" 
+               target="_blank" 
+               rel="noreferrer" 
+               className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 bg-banana-500/10 hover:bg-banana-500/20 text-banana-500 rounded-lg transition-colors border border-banana-500/20"
+             >
+                <Bot className="w-3 h-3 md:w-4 md:h-4" />
+                Попробовать бесплатно: @imgbananobot
              </a>
           </div>
 
