@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { 
   AspectRatio, 
@@ -36,6 +35,7 @@ interface ImageGeneratorProps {
   balance: number;
   onDeductBalance: (amount: number) => void;
   onReqTopUp: () => void;
+  selectedItem?: HistoryItem | null;
 }
 
 // Pricing configuration (RUB)
@@ -53,7 +53,8 @@ export const ImageGenerator: React.FC<ImageGeneratorProps> = ({
   onHistoryUpdate, 
   balance,
   onDeductBalance,
-  onReqTopUp
+  onReqTopUp,
+  selectedItem
 }) => {
   const [activeSection, setActiveSection] = useState<SectionType>(MODEL_NANO);
 
@@ -90,15 +91,39 @@ export const ImageGenerator: React.FC<ImageGeneratorProps> = ({
     };
   }, []);
 
+  // Restore state from history selection
   useEffect(() => {
-    setError(null);
-  }, [activeSection]);
+    if (selectedItem) {
+      setActiveSection(selectedItem.model);
+      
+      if (selectedItem.status === 'success' && (selectedItem.resultUrl || selectedItem.imageUrl)) {
+        const url = selectedItem.resultUrl || selectedItem.imageUrl;
+        const isVideo = selectedItem.model === MODEL_SORA || selectedItem.model === MODEL_TOPAZ;
+        setResultData({ url: url!, isVideo });
+        setError(null);
+      } else if (selectedItem.status === 'fail') {
+        setError('Эта задача завершилась ошибкой.');
+        setResultData(null);
+      }
+
+      // Restore inputs
+      if (selectedItem.model === MODEL_NANO && selectedItem.prompt) {
+        setPrompt(selectedItem.prompt);
+      }
+      if (selectedItem.model === MODEL_SORA && selectedItem.videoInputUrl) {
+         if (selectedItem.videoInputUrl.startsWith('http')) {
+           setSoraMode('link');
+           setSoraUrl(selectedItem.videoInputUrl);
+         }
+      }
+    }
+  }, [selectedItem]);
 
   useEffect(() => {
     if ((resultData || error) && resultRef.current) {
       setTimeout(() => {
         resultRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }, 100);
+      }, 300);
     }
   }, [resultData, error]);
 
@@ -277,8 +302,8 @@ export const ImageGenerator: React.FC<ImageGeneratorProps> = ({
              </h2>
              
              <p className="text-gray-400 text-lg md:text-xl max-w-2xl mx-auto mb-10 leading-relaxed">
-               Доступ к <b className="text-white">безлимитной</b> генерации Nano Banana Pro и созданию видео <b className="text-white">Veo</b> на месяц.
-               <br/><span className="text-sm opacity-70">Вы потеряли вкладку с этим предложением, но мы её вернули.</span>
+               Доступ к <b className="text-white">безлимиту</b> Nano Banana Pro и генерации видео <b className="text-white">Veo</b> на месяц.
+               <br/><span className="text-sm opacity-70">Мы с вами это обсуждали — теперь это доступно в один клик.</span>
              </p>
 
              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-10 max-w-3xl mx-auto">
@@ -297,7 +322,7 @@ export const ImageGenerator: React.FC<ImageGeneratorProps> = ({
                    </div>
                    <div>
                       <h3 className="font-bold text-white">Veo Video</h3>
-                      <p className="text-xs text-gray-500">Генерация видео нового поколения</p>
+                      <p className="text-xs text-gray-500">Генерация видео Veo (Sora)</p>
                    </div>
                 </div>
              </div>
@@ -343,7 +368,11 @@ export const ImageGenerator: React.FC<ImageGeneratorProps> = ({
             ].map((tab) => (
                <button
                   key={tab.id}
-                  onClick={() => setActiveSection(tab.id as SectionType)}
+                  onClick={() => {
+                     setActiveSection(tab.id as SectionType);
+                     setResultData(null); // Clear result when explicitly switching tabs
+                     setError(null);
+                  }}
                   className={`flex items-center gap-2 px-4 md:px-6 py-3 rounded-xl text-xs md:text-sm font-bold transition-all duration-300 ${
                      activeSection === tab.id 
                         ? 'bg-dark-800 text-white shadow-lg border border-white/5' 
@@ -634,7 +663,7 @@ export const ImageGenerator: React.FC<ImageGeneratorProps> = ({
         </div>
       </div>
 
-      {/* RESULT AREA */}
+      {/* RESULT AREA - Visible whenever there is a resultData */}
       {(resultData || error) && (
          <div ref={resultRef} className="animate-in fade-in slide-in-from-bottom-8 duration-500 scroll-mt-24">
             {error ? (
@@ -643,15 +672,26 @@ export const ImageGenerator: React.FC<ImageGeneratorProps> = ({
                    {error}
                 </div>
             ) : (
-                <div className="bg-dark-900 rounded-[2rem] overflow-hidden border border-white/10 shadow-2xl relative">
-                   <div className="p-4 bg-black/50 flex justify-end gap-2 backdrop-blur absolute w-full z-10 top-0 left-0">
+                <div className="bg-dark-900 rounded-[2rem] overflow-hidden border border-white/10 shadow-2xl relative group">
+                   <div className="p-4 bg-black/50 flex justify-end gap-2 backdrop-blur absolute w-full z-10 top-0 left-0 opacity-0 group-hover:opacity-100 transition-opacity">
                       <a href={resultData!.url} target="_blank" rel="noreferrer" className="p-2 bg-white/10 rounded-full hover:bg-white/20 text-white"><Maximize2 className="w-5 h-5" /></a>
                       <a href={resultData!.url} download className="p-2 bg-banana-500 rounded-full text-black hover:bg-banana-400"><Download className="w-5 h-5" /></a>
                    </div>
+                   
                    {resultData!.isVideo ? (
-                      <video src={resultData!.url} controls autoPlay loop className="w-full aspect-video object-contain bg-black" />
+                      <video 
+                        src={resultData!.url} 
+                        controls 
+                        autoPlay 
+                        loop 
+                        className="w-full aspect-video object-contain bg-black/90" 
+                      />
                    ) : (
-                      <img src={resultData!.url} alt="Result" className="w-full h-auto object-contain bg-black min-h-[300px]" />
+                      <img 
+                        src={resultData!.url} 
+                        alt="Result" 
+                        className="w-full h-auto object-contain bg-black/90 min-h-[300px]" 
+                      />
                    )}
                 </div>
             )}

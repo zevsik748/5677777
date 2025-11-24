@@ -3,11 +3,11 @@ import { CreateTaskRequest, CreateTaskResponse, TaskInput, TaskRecordResponse, T
 
 const BASE_URL = "https://api.kie.ai/api/v1/jobs";
 
-export class KieServiceError extends Error {
+export class ApiServiceError extends Error {
   code?: number;
   constructor(message: string, code?: number) {
     super(message);
-    this.name = "KieServiceError";
+    this.name = "ApiServiceError";
     this.code = code;
   }
 }
@@ -31,18 +31,18 @@ export const createTask = async (apiKey: string, model: ModelType, input: TaskIn
     });
 
     if (!response.ok) {
-      throw new KieServiceError(`HTTP Error: ${response.status}`);
+      throw new ApiServiceError(`HTTP Error: ${response.status}`);
     }
 
     const data: CreateTaskResponse = await response.json();
 
     if (data.code !== 200) {
-      throw new KieServiceError(data.msg || "Failed to create task", data.code);
+      throw new ApiServiceError(data.msg || "Failed to create task", data.code);
     }
 
     return data.data.taskId;
   } catch (error: any) {
-    throw new KieServiceError(error.message || "Network error");
+    throw new ApiServiceError(error.message || "Network error");
   }
 };
 
@@ -54,39 +54,56 @@ export const getTaskStatus = async (apiKey: string, taskId: string): Promise<Tas
     });
 
     if (!response.ok) {
-      throw new KieServiceError(`HTTP Error: ${response.status}`);
+      throw new ApiServiceError(`HTTP Error: ${response.status}`);
     }
 
     const data: TaskRecordResponse = await response.json();
 
     if (data.code !== 200) {
-      throw new KieServiceError(data.msg || "Failed to fetch task status", data.code);
+      throw new ApiServiceError(data.msg || "Failed to fetch task status", data.code);
     }
 
     return data.data;
   } catch (error: any) {
-    throw new KieServiceError(error.message || "Network error");
+    throw new ApiServiceError(error.message || "Network error");
   }
 };
 
 export const parseResultJson = (jsonString?: string): string[] => {
   if (!jsonString) return [];
   try {
-    const parsed = JSON.parse(jsonString);
+    // If it's already an object (sometimes API returns weird stuff), handle it
+    let parsed: any = jsonString;
+    if (typeof jsonString === 'string') {
+        try {
+            parsed = JSON.parse(jsonString);
+        } catch {
+            // if plain string is a url
+            if (jsonString.startsWith('http')) return [jsonString];
+            return [];
+        }
+    }
     
+    if (!parsed) return [];
+
     // Robust parsing for different response formats
     if (Array.isArray(parsed)) {
       return parsed.map(String);
     }
     
-    if (parsed.resultUrls && Array.isArray(parsed.resultUrls)) {
-      return parsed.resultUrls;
+    // Check known fields
+    if (typeof parsed === 'object') {
+        if (parsed.resultUrls && Array.isArray(parsed.resultUrls)) {
+          return parsed.resultUrls;
+        }
+        
+        const possibleFields = ['url', 'image_url', 'video_url', 'output', 'link', 'download_url'];
+        for (const field of possibleFields) {
+            if (parsed[field] && typeof parsed[field] === 'string') {
+                return [parsed[field]];
+            }
+        }
     }
-    
-    if (parsed.url) return [parsed.url];
-    if (parsed.image_url) return [parsed.image_url];
-    if (parsed.video_url) return [parsed.video_url];
-    if (parsed.output) return [parsed.output];
 
     return [];
   } catch (e) {
