@@ -5,19 +5,28 @@ import { ImageGenerator } from './components/ImageGenerator';
 import { HistorySidebar } from './components/HistorySidebar';
 import { STORAGE_KEY_API_KEY, STORAGE_KEY_HISTORY } from './constants';
 import { HistoryItem } from './types';
-import { Zap, Clock, Settings, Wallet, Shield } from 'lucide-react';
+import { Zap, Clock, Wallet, Shield } from 'lucide-react';
 
-// Safe environment variable getter
+// Safe environment variable getter that works in Vite and other environments
 const getEnv = (key: string): string | undefined => {
+  // Try import.meta.env (Vite standard)
   try {
     // @ts-ignore
-    if (typeof import.meta !== 'undefined' && import.meta.env) {
+    if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env[key]) {
       // @ts-ignore
       return import.meta.env[key];
     }
-  } catch (e) {
-    console.warn('Environment access error');
-  }
+  } catch (e) {}
+
+  // Try process.env (Fallback)
+  try {
+    // @ts-ignore
+    if (typeof process !== 'undefined' && process.env && process.env[key]) {
+      // @ts-ignore
+      return process.env[key];
+    }
+  } catch (e) {}
+
   return undefined;
 };
 
@@ -32,29 +41,30 @@ const App: React.FC = () => {
   const [balance, setBalance] = useState<number>(0);
   const [isWalletModalOpen, setIsWalletModalOpen] = useState(false);
   
-  // Timeweb / Server Config State
-  const [accessCode, setAccessCode] = useState<string | null>(null); // The code to TOP UP
+  // Config State
+  const [accessCode, setAccessCode] = useState<string | null>(null);
   const [lavaUrl, setLavaUrl] = useState<string | null>(null);
 
   useEffect(() => {
-    // 1. Load configuration from Environment (Timeweb)
+    // 1. Load configuration from Environment
     const envApiKey = getEnv('VITE_API_KEY');
     const envAccessCode = getEnv('VITE_ACCESS_CODE');
     const envLavaUrl = getEnv('VITE_LAVA_URL');
-    const envLavaKey = getEnv('VITE_LAVA_KEY'); // Fallback
 
-    // Set API Key immediately if available (No Auth Screen)
     if (envApiKey) {
       setApiKey(envApiKey);
     } else {
-      // Fallback: Check local storage for manually entered key
+      // Fallback: Check local storage
       const storedKey = localStorage.getItem(STORAGE_KEY_API_KEY);
       if (storedKey) setApiKey(storedKey);
     }
 
-    if (envAccessCode) setAccessCode(envAccessCode);
-    if (envLavaUrl || envLavaKey) {
-      setLavaUrl(envLavaUrl || "https://lava.top/"); 
+    // Set Access Code (default to 'admin' if not set, to allow testing)
+    setAccessCode(envAccessCode || 'admin');
+    
+    // Set Lava URL
+    if (envLavaUrl) {
+      setLavaUrl(envLavaUrl);
     }
 
     // 2. Load History
@@ -72,10 +82,10 @@ const App: React.FC = () => {
     if (storedBalance) {
       setBalance(parseInt(storedBalance, 10));
     } else {
-      setBalance(0); // Default start balance
+      setBalance(0); // New users start with 0
     }
 
-    // Fake Online Counter
+    // Fake Online Counter Animation
     setOnlineCount(Math.floor(Math.random() * (1400 - 1000 + 1)) + 1000);
     const interval = setInterval(() => {
       setOnlineCount(prev => {
@@ -91,15 +101,15 @@ const App: React.FC = () => {
   }, []);
 
   const handleTopUp = (code: string) => {
-    // If code matches the environment Access Code, add balance
+    // Simple logic: if code matches VITE_ACCESS_CODE, give money
     if (accessCode && code.trim() === accessCode) {
-      const newBalance = 5000; // Grant 5000 RUB or whatever logic
+      const newBalance = (balance || 0) + 1000; // Add 1000 RUB per code activation for simplicity
       setBalance(newBalance);
       localStorage.setItem('kie_user_balance', newBalance.toString());
       setIsWalletModalOpen(false);
-      alert(`Код принят! Баланс пополнен до ${newBalance} ₽`);
+      alert(`Код принят! Баланс пополнен. Текущий баланс: ${newBalance} ₽`);
     } else {
-      alert("Неверный код пополнения!");
+      alert("Неверный код активации. Пожалуйста, оплатите доступ через Lava и получите корректный код.");
     }
   };
 
@@ -181,7 +191,7 @@ const App: React.FC = () => {
             className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border transition-all ${
               balance > 0 
                 ? 'bg-dark-900 border-dark-700 text-green-400 hover:border-green-500/50' 
-                : 'bg-red-900/20 border-red-500/30 text-red-400 hover:bg-red-900/30'
+                : 'bg-red-900/20 border-red-500/30 text-red-400 hover:bg-red-900/30 animate-pulse'
             }`}
           >
             <Wallet className="w-4 h-4" />
@@ -211,12 +221,16 @@ const App: React.FC = () => {
                onReqTopUp={() => setIsWalletModalOpen(true)}
              />
            ) : (
-             /* Fallback if Key is missing completely */
+             /* Fallback if VITE_API_KEY is missing */
              <div className="flex flex-col items-center justify-center mt-32 text-gray-500 gap-6">
-                <Shield className="w-16 h-16 text-dark-700" />
-                <div className="text-center">
-                  <h2 className="text-xl font-bold text-gray-300">Система не настроена</h2>
-                  <p className="text-sm">API Key не найден в настройках.</p>
+                <div className="w-20 h-20 rounded-full bg-dark-900 flex items-center justify-center border border-dark-700">
+                   <Shield className="w-10 h-10 text-red-500" />
+                </div>
+                <div className="text-center max-w-md px-4">
+                  <h2 className="text-xl font-bold text-gray-200 mb-2">Требуется настройка</h2>
+                  <p className="text-sm text-gray-400 leading-relaxed">
+                    Ключ API не найден. Пожалуйста, добавьте переменную <code className="bg-dark-800 px-1 py-0.5 rounded text-banana-500">VITE_API_KEY</code> в настройки деплоя Timeweb.
+                  </p>
                 </div>
              </div>
            )}

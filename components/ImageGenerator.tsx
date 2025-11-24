@@ -49,6 +49,9 @@ const PRICES: Record<ModelType, number> = {
   [MODEL_TOPAZ]: 10,
 };
 
+// Safe ID generator
+const generateId = () => Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+
 export const ImageGenerator: React.FC<ImageGeneratorProps> = ({ 
   apiKey, 
   onHistoryUpdate, 
@@ -57,7 +60,7 @@ export const ImageGenerator: React.FC<ImageGeneratorProps> = ({
   onDeductBalance,
   onReqTopUp
 }) => {
-  const [activeSection, setActiveSection] = useState<SectionType>(MODEL_NANO); // Default to Nano now as requested flow
+  const [activeSection, setActiveSection] = useState<SectionType>(MODEL_NANO);
 
   // Nano Form State
   const [prompt, setPrompt] = useState(DEFAULT_PROMPT);
@@ -122,7 +125,7 @@ export const ImageGenerator: React.FC<ImageGeneratorProps> = ({
   const startPolling = (taskId: string, model: ModelType, currentPrompt?: string, currentVideoUrl?: string) => {
     setStatusMsg('Обработка задачи...');
     
-    const historyId = crypto.randomUUID();
+    const historyId = generateId();
     const historyItemBase: HistoryItem = {
       id: historyId,
       taskId,
