@@ -46,10 +46,10 @@ const PRICES: Record<string, number> = {
 
 const generateId = () => Date.now().toString(36) + Math.random().toString(36).substring(2);
 
-// Utility to strip Data URI header and get raw base64
+// Utility to strip Data URI header and get raw base64 for API
 const cleanBase64 = (str: string | null): string => {
   if (!str) return "";
-  // If it contains a comma, likely "data:image/png;base64,AAAA..."
+  // API expects raw base64 without "data:image/png;base64," prefix
   if (str.includes(',')) {
     return str.split(',')[1];
   }
@@ -74,7 +74,7 @@ export const ImageGenerator: React.FC<ImageGeneratorProps> = ({
 
   // Sora Form State
   const [soraMode, setSoraMode] = useState<'link' | 'file'>('link');
-  const [soraUrl, setSoraUrl] = useState(DEFAULT_SORA_URL);
+  const [soraUrl, setSoraUrl] = useState(''); // Starts empty
   const [soraFile, setSoraFile] = useState<string | null>(null);
 
   // Topaz Form State
@@ -97,7 +97,6 @@ export const ImageGenerator: React.FC<ImageGeneratorProps> = ({
   }, []);
 
   useEffect(() => {
-    // Clear result when switching tabs to avoid confusion
     setResultData(null);
     setError(null);
     setStatusMsg('');
@@ -167,7 +166,6 @@ export const ImageGenerator: React.FC<ImageGeneratorProps> = ({
     const model = activeSection as ModelType;
     const price = PRICES[model] || 0;
     
-    // Check balance BEFORE starting
     if (balance < price) { 
         onReqTopUp(); 
         return; 
@@ -179,31 +177,27 @@ export const ImageGenerator: React.FC<ImageGeneratorProps> = ({
       if (model === MODEL_NANO) {
         if (!prompt.trim()) throw new Error("Введите промпт");
         
-        // FIX: Send RAW BASE64 (stripped header) for Nano to fix "file type not supported"
-        const cleanImages = refImage ? [cleanBase64(refImage)] : [];
+        // FIX: Ensure image input is an array of RAW BASE64 strings
+        const imageInputArray = refImage ? [cleanBase64(refImage)] : [];
         
         input = { 
             prompt, 
             aspect_ratio: aspectRatio, 
             resolution: Resolution.Res_4K, 
             output_format: format, 
-            image_input: cleanImages 
+            image_input: imageInputArray 
         };
       } else if (model === MODEL_SORA) {
         const vidUrl = soraMode === 'link' ? soraUrl : (soraFile || undefined);
         if (!vidUrl) throw new Error("Укажите видео");
-        // For Sora video upload, usually best to send Full Data URI if using video_url field client side
-        input = { video_url: vidUrl };
+        // For Sora, send URL if link, or clean base64 if file (assuming API supports base64 in video_url field)
+        input = { video_url: soraMode === 'file' ? cleanBase64(vidUrl) : vidUrl };
       } else if (model === MODEL_TOPAZ) {
         if (!topazFile) throw new Error("Загрузите видео");
-         // For Topaz video upload, usually best to send Full Data URI if using video_url field client side
-        input = { video_url: topazFile, upscale_factor: upscaleFactor };
+        input = { video_url: cleanBase64(topazFile), upscale_factor: upscaleFactor };
       } else throw new Error("Unknown model");
       
-      // API CALL
       const taskId = await createTask(apiKey, model, input);
-      
-      // DEDUCT BALANCE ONLY IF SUCCESSFUL
       onDeductBalance(price);
 
       const promptLabel = model === MODEL_NANO ? prompt : undefined;
@@ -212,7 +206,6 @@ export const ImageGenerator: React.FC<ImageGeneratorProps> = ({
     } catch (err: any) {
       setLoading(false); 
       setError(err.message || "Ошибка");
-      // Balance is NOT deducted here
     }
   };
 
@@ -225,9 +218,7 @@ export const ImageGenerator: React.FC<ImageGeneratorProps> = ({
     <div className="space-y-6 pb-24 md:pb-12">
       <NavigationTabs activeSection={activeSection} setActiveSection={setActiveSection} setResultData={setResultData} setError={setError} />
 
-      {/* MAIN GENERATOR CARD - ULTRA DESIGN */}
       <div className="relative w-full max-w-4xl mx-auto group perspective-1000">
-        {/* Massive Glow */}
         <div className={`absolute -inset-4 bg-gradient-to-b opacity-40 blur-3xl rounded-[3rem] transition-all duration-700 ${
            activeSection === MODEL_NANO ? 'from-banana-500/60 to-transparent' : 
            activeSection === MODEL_SORA ? 'from-pink-500/60 to-transparent' :
@@ -235,7 +226,6 @@ export const ImageGenerator: React.FC<ImageGeneratorProps> = ({
         }`}></div>
 
         <div className="relative bg-dark-950/80 backdrop-blur-3xl border border-white/10 rounded-[2.5rem] p-6 md:p-10 shadow-2xl overflow-hidden ring-1 ring-white/5">
-            {/* Header Area */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-10 border-b border-white/5 pb-8">
                <div>
                   {activeSection === MODEL_NANO && <h2 className="text-4xl md:text-5xl font-black text-white tracking-tighter drop-shadow-xl">Nano <span className="text-banana-500">Banana Pro</span></h2>}
@@ -259,7 +249,6 @@ export const ImageGenerator: React.FC<ImageGeneratorProps> = ({
                </div>
             </div>
 
-            {/* MARKETING BULLETS */}
             <div className="mb-10 grid gap-4 bg-white/5 rounded-3xl p-6 border border-white/5 shadow-inner">
                {MARKETING_COPY[activeSection as ModelType]?.map((point, i) => (
                   <div key={i} className="flex items-start gap-4 text-sm md:text-base text-gray-200 font-medium">
@@ -275,7 +264,6 @@ export const ImageGenerator: React.FC<ImageGeneratorProps> = ({
                ))}
             </div>
 
-            {/* FORM INPUTS */}
             <div className="space-y-8">
                 {activeSection === MODEL_NANO && (
                    <div className="space-y-8 animate-in fade-in zoom-in-95 duration-500">
@@ -290,7 +278,6 @@ export const ImageGenerator: React.FC<ImageGeneratorProps> = ({
                       </div>
                       
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                         {/* Aspect Ratio */}
                          <div className="bg-black/40 rounded-3xl p-5 border border-white/5">
                            <label className="text-xs font-black text-gray-500 uppercase mb-4 flex items-center gap-2"><Star className="w-3 h-3" /> Формат</label>
                            <div className="grid grid-cols-2 gap-3">
@@ -300,7 +287,6 @@ export const ImageGenerator: React.FC<ImageGeneratorProps> = ({
                            </div>
                          </div>
 
-                         {/* Quality (Locked 4K) */}
                          <div className="bg-black/40 rounded-3xl p-5 border border-white/5">
                            <label className="text-xs font-black text-gray-500 uppercase mb-4 flex items-center gap-2"><Zap className="w-3 h-3" /> Качество</label>
                            <div className="h-full flex items-center justify-center pb-6">
@@ -310,7 +296,6 @@ export const ImageGenerator: React.FC<ImageGeneratorProps> = ({
                            </div>
                          </div>
 
-                         {/* Reference */}
                          <div className="bg-black/40 rounded-3xl p-5 border border-white/5">
                            <label className="text-xs font-black text-gray-500 uppercase mb-4 flex items-center gap-2"><Camera className="w-3 h-3" /> Референс</label>
                            <FileUpload color="banana" file={refImage} setFile={setRefImage} small />
@@ -348,7 +333,6 @@ export const ImageGenerator: React.FC<ImageGeneratorProps> = ({
                    </div>
                 )}
 
-                {/* MASSIVE ACTION BUTTON */}
                 <button 
                     onClick={handleGenerate} 
                     disabled={loading} 
@@ -364,7 +348,6 @@ export const ImageGenerator: React.FC<ImageGeneratorProps> = ({
             </div>
         </div>
 
-        {/* ADVERTISING FOOTER */}
         <div className="mt-8 text-center animate-in fade-in slide-in-from-bottom-4 duration-1000">
             <a href={SECRET_TELEGRAM_LINK} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 text-gray-500 hover:text-white transition-colors text-xs uppercase tracking-widest font-bold group">
                 Заказать нейро видео креатив под ключ <Send className="w-3 h-3 group-hover:translate-x-1 transition-transform" />
@@ -372,7 +355,6 @@ export const ImageGenerator: React.FC<ImageGeneratorProps> = ({
         </div>
       </div>
 
-      {/* Result Area */}
       {(resultData || error) && (
          <div ref={resultRef} className="animate-in fade-in slide-in-from-bottom-8 duration-700 ease-out max-w-4xl mx-auto pt-10">
             {error ? (
@@ -395,7 +377,6 @@ export const ImageGenerator: React.FC<ImageGeneratorProps> = ({
   );
 };
 
-// Sub-components
 const FileUpload = ({ color, file, setFile, small }: any) => (
    <div className={`relative group cursor-pointer overflow-hidden rounded-3xl transition-all duration-300 ${small ? 'h-full min-h-[120px]' : 'h-48'}`}>
       <input type="file" onChange={(e) => { if(e.target.files?.[0]) { const r = new FileReader(); r.onload = () => setFile(r.result); r.readAsDataURL(e.target.files[0]); }}} className="absolute inset-0 z-20 opacity-0 w-full h-full cursor-pointer" />

@@ -1,5 +1,4 @@
 
-
 import { AspectRatio, OutputFormat, Resolution, ModelType } from "./types";
 
 export const MODEL_NANO = "nano-banana-pro";
@@ -24,8 +23,8 @@ export const STORAGE_KEY_API_KEY = "kie_api_key";
 export const STORAGE_KEY_HISTORY = "kie_history";
 
 export const DEFAULT_PROMPT = ""; 
-export const DEFAULT_SORA_URL = "https://sora.chatgpt.com/p/s_68e83bd7eee88191be79d2ba7158516f";
-export const DEFAULT_TOPAZ_URL = "https://file.aiquickdraw.com/custom-page/akr/section-images/1758166466095hvbwkrpw.mp4";
+export const DEFAULT_SORA_URL = ""; // CLEARED
+export const DEFAULT_TOPAZ_URL = "";
 
 export const SECRET_LINK = "https://ai.studio/apps/drive/1gWNpwbFqxy5bOJZVKuYlzUezhgxd67jV";
 export const SECRET_PRICE = 1499;

@@ -1,4 +1,4 @@
-import React, { Component, useState, useEffect, ReactNode, ErrorInfo } from 'react';
+import React, { useState, useEffect, ReactNode, ErrorInfo } from 'react';
 import { ApiKeyModal } from './components/ApiKeyModal';
 import { ImageGenerator } from './components/ImageGenerator';
 import { HistorySidebar } from './components/HistorySidebar';
@@ -15,7 +15,7 @@ interface ErrorBoundaryState {
   error: string;
 }
 
-class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
+class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
   public state: ErrorBoundaryState = { hasError: false, error: "" };
 
   static getDerivedStateFromError(error: Error): ErrorBoundaryState {
