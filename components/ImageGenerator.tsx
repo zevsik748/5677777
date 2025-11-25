@@ -17,12 +17,12 @@ import {
   MARKETING_COPY,
   SECRET_TELEGRAM_LINK
 } from '../constants';
-import { createTask, getTaskStatus, parseResultJson, uploadFile } from '../services/kieService';
+import { createTask, getTaskStatus, parseResultJson } from '../services/kieService';
 import { 
   Wand2, Loader2, 
   UploadCloud, Zap, Check,
-  Crown, Briefcase, Play, Star,
-  Camera, Gem, ThumbsUp, Send
+  Crown, Briefcase, Star,
+  Camera, Gem, ThumbsUp, Send, Link as LinkIcon
 } from 'lucide-react';
 
 interface ImageGeneratorProps {
@@ -40,6 +40,40 @@ const PRICES: Record<string, number> = {
 
 const generateId = () => Date.now().toString(36) + Math.random().toString(36).substring(2);
 
+// Helper to convert file to Raw Base64 JPEG (stripping header)
+const processFileToRawBase64 = (file: File): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.width;
+        canvas.height = img.height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+            reject(new Error("Canvas context failed"));
+            return;
+        }
+        // Fill white background to handle transparent PNGs
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(img, 0, 0);
+        
+        // Export as JPEG 
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.95);
+        // Strip header "data:image/jpeg;base64," to get raw base64
+        const rawBase64 = dataUrl.replace(/^data:image\/(png|jpeg|jpg|webp);base64,/, '');
+        resolve(rawBase64);
+      };
+      img.onerror = reject;
+      img.src = event.target?.result as string;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+};
+
 export const ImageGenerator: React.FC<ImageGeneratorProps> = ({ 
   apiKey, 
   onHistoryUpdate, 
@@ -54,8 +88,8 @@ export const ImageGenerator: React.FC<ImageGeneratorProps> = ({
   const [nanoMode, setNanoMode] = useState<'link' | 'file'>('file');
   const [prompt, setPrompt] = useState(''); 
   const [aspectRatio, setAspectRatio] = useState<AspectRatio>(AspectRatio.Horizontal_16_9);
-  const [nanoFileObj, setNanoFileObj] = useState<File | null>(null); // Store raw file for upload
-  const [nanoPreview, setNanoPreview] = useState<string | null>(null); // For display
+  const [nanoFileObj, setNanoFileObj] = useState<File | null>(null); 
+  const [nanoPreview, setNanoPreview] = useState<string | null>(null); 
   const [nanoUrl, setNanoUrl] = useState('');
 
   // General State
@@ -87,7 +121,7 @@ export const ImageGenerator: React.FC<ImageGeneratorProps> = ({
         if (url) {
             setResultData({ 
                 url, 
-                isVideo: false // Nano is always image
+                isVideo: false 
             });
         }
       }
@@ -135,7 +169,6 @@ export const ImageGenerator: React.FC<ImageGeneratorProps> = ({
             }
         } catch (e) { 
             console.error(e); 
-            // Don't stop polling on network error immediately, wait for next tick
         }
     }, 2000);
   };
@@ -157,12 +190,11 @@ export const ImageGenerator: React.FC<ImageGeneratorProps> = ({
             
             const images: string[] = [];
             
-            // Case 1: File Upload -> Get URL -> Send URL
+            // Case 1: File -> Convert to Jpeg Raw Base64 -> Send
             if (nanoMode === 'file' && nanoFileObj) {
-                setStatusMsg('Загрузка фото...');
-                const uploadedUrl = await uploadFile(apiKey, nanoFileObj);
-                if (!uploadedUrl) throw new Error("Не удалось загрузить изображение");
-                images.push(uploadedUrl);
+                setStatusMsg('Обработка фото...');
+                const rawBase64 = await processFileToRawBase64(nanoFileObj);
+                images.push(rawBase64);
             } 
             // Case 2: Direct Link
             else if (nanoMode === 'link' && nanoUrl) {
@@ -353,7 +385,6 @@ const FileUpload = ({ color, filePreview, setFileObj, setPreview }: any) => {
   const handleFile = (file: File) => {
     if (file) {
         setFileObj(file);
-        // Create local preview
         const reader = new FileReader();
         reader.onload = (e) => setPreview(e.target?.result as string);
         reader.readAsDataURL(file);
@@ -472,7 +503,6 @@ const UltraAccessView = ({ activeSection, setActiveSection, setResultData, setEr
 );
 
 const NavigationTabs = ({ activeSection, setActiveSection, setResultData, setError }: any) => {
-   // Filtered tabs - NO SORA, NO TOPAZ
    const tabs = [
       { id: MODEL_NANO, label: 'Nano Banana Pro', icon: Wand2, color: 'text-banana-500' },
       { id: SECTION_ULTRA, label: 'ULTRA', icon: Crown, color: 'text-pink-500' },
