@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { 
   AspectRatio, 
@@ -41,14 +40,14 @@ interface ImageGeneratorProps {
 }
 
 // Pricing configuration (RUB)
-const PRICES: Record<ModelType, number> = {
+const PRICES: Record<string, number> = {
   [MODEL_NANO]: 19,
   [MODEL_SORA]: 5,
   [MODEL_TOPAZ]: 10,
 };
 
 // Safe ID generator
-const generateId = () => Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+const generateId = () => Date.now().toString(36) + Math.random().toString(36).substring(2);
 
 export const ImageGenerator: React.FC<ImageGeneratorProps> = ({ 
   apiKey, 
@@ -198,6 +197,7 @@ export const ImageGenerator: React.FC<ImageGeneratorProps> = ({
     if (activeSection === SECTION_FULL_ACCESS || activeSection === SECTION_BUSINESS) return;
     
     const model = activeSection as ModelType;
+    // Safely access price
     const price = PRICES[model] || 0;
 
     if (!apiKey) {
@@ -460,7 +460,7 @@ export const ImageGenerator: React.FC<ImageGeneratorProps> = ({
     );
   }
 
-  const currentPrice = PRICES[activeSection as ModelType];
+  const currentPrice = PRICES[activeSection as ModelType] || 0;
 
   return (
     <div className="space-y-4 md:space-y-8 pb-20">
