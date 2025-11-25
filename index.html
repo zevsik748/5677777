@@ -1,11 +1,12 @@
+
 <!DOCTYPE html>
 <html lang="ru">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <title>AI Client | All-in-One Tools</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     <script>
       tailwind.config = {
         theme: {
@@ -15,25 +16,22 @@
             },
             colors: {
               banana: {
-                400: '#FFE64D', 
-                500: '#FEDC00', /* Brand Yellow */
-                600: '#E5C600',
+                300: '#FFEA75',
+                400: '#FFE34D',
+                500: '#FEDC00', /* BRAND YELLOW */
+                600: '#D9BD00',
               },
               pink: {
                 400: '#FF9FC5',
-                500: '#FF73A8', /* Brand Pink */
+                500: '#FF73A8', /* BRAND PINK */
                 600: '#E64D85',
               },
               blue: {
                 400: '#6D85F7',
-                500: '#3F5EF4', /* Brand Blue */
+                500: '#3F5EF4', /* BRAND BLUE */
                 600: '#2A46D6',
               },
               dark: {
-                400: '#9CA3AF',
-                500: '#6B7280',
-                600: '#4B5563',
-                700: '#374151',
                 800: '#1F2937',
                 900: '#111827',
                 950: '#030712',
@@ -41,13 +39,7 @@
             },
             animation: {
               'in': 'fade-in 0.3s ease-out',
-              'pulse-glow': 'pulse-glow 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
-            },
-            keyframes: {
-              'pulse-glow': {
-                '0%, 100%': { opacity: 1 },
-                '50%': { opacity: .5 },
-              }
+              'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
             }
           }
         }
@@ -57,40 +49,28 @@
       body {
         background-color: #030712;
         color: #e5e7eb;
-        background-image: radial-gradient(circle at 50% 0%, #111827 0%, #030712 100%);
+        background-image: 
+          radial-gradient(circle at 50% 0%, #1a1f2e 0%, #030712 60%),
+          radial-gradient(circle at 85% 30%, rgba(63, 94, 244, 0.03) 0%, transparent 20%),
+          radial-gradient(circle at 15% 70%, rgba(255, 115, 168, 0.03) 0%, transparent 20%);
         min-height: 100vh;
+        -webkit-tap-highlight-color: transparent;
       }
-      /* Custom scrollbar */
+      .pb-safe {
+        padding-bottom: env(safe-area-inset-bottom);
+      }
       ::-webkit-scrollbar {
         width: 6px;
-        height: 6px;
       }
       ::-webkit-scrollbar-track {
         background: transparent;
       }
       ::-webkit-scrollbar-thumb {
         background: #374151;
-        border-radius: 4px;
+        border-radius: 10px;
       }
-      ::-webkit-scrollbar-thumb:hover {
-        background: #4b5563;
-      }
-      
       .custom-scrollbar::-webkit-scrollbar {
-        height: 4px;
-      }
-      .custom-scrollbar::-webkit-scrollbar-thumb {
-        background: #374151;
-      }
-      
-      /* Hide scrollbar for chrome/safari/opera */
-      .scrollbar-hide::-webkit-scrollbar {
-        display: none;
-      }
-      /* Hide scrollbar for IE, Edge and Firefox */
-      .scrollbar-hide {
-        -ms-overflow-style: none;  /* IE and Edge */
-        scrollbar-width: none;  /* Firefox */
+        width: 4px;
       }
     </style>
   <meta name="lava-verify" content="e638c1bff9684633" />
