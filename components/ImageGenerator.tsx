@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { 
   AspectRatio, 
@@ -10,24 +11,22 @@ import {
   UpscaleFactor
 } from '../types';
 import { 
-  ASPECT_RATIOS, 
-  RESOLUTIONS,
-  DEFAULT_PROMPT, 
+  NANO_RATIOS, 
   DEFAULT_SORA_URL,
   MODEL_NANO,
   MODEL_SORA,
   MODEL_TOPAZ,
-  SECTION_FULL_ACCESS,
+  SECTION_ULTRA,
   SECTION_BUSINESS,
-  NANO_PRESETS,
+  MARKETING_COPY,
   SECRET_TELEGRAM_LINK
 } from '../constants';
 import { createTask, getTaskStatus, parseResultJson } from '../services/kieService';
 import { 
-  Wand2, Download, Maximize2, Loader2, AlertTriangle, 
-  UploadCloud, Video, Zap, X, Check,
-  MonitorPlay, ExternalLink, ChevronRight, Crown,
-  Link as LinkIcon, FileVideo, Briefcase, Globe, ShieldCheck, Users, RefreshCw, Star, Rocket
+  Wand2, Download, Loader2, 
+  UploadCloud, Video, Zap, Check,
+  MonitorPlay, Crown, Briefcase, Play, Star,
+  Link as LinkIcon, Camera, Maximize2, Gem, ThumbsUp, Send
 } from 'lucide-react';
 
 interface ImageGeneratorProps {
@@ -39,15 +38,23 @@ interface ImageGeneratorProps {
   selectedItem?: HistoryItem | null;
 }
 
-// Pricing configuration (RUB)
 const PRICES: Record<string, number> = {
   [MODEL_NANO]: 19,
   [MODEL_SORA]: 5,
   [MODEL_TOPAZ]: 10,
 };
 
-// Safe ID generator
 const generateId = () => Date.now().toString(36) + Math.random().toString(36).substring(2);
+
+// Utility to strip Data URI header and get raw base64
+const cleanBase64 = (str: string | null): string => {
+  if (!str) return "";
+  // If it contains a comma, likely "data:image/png;base64,AAAA..."
+  if (str.includes(',')) {
+    return str.split(',')[1];
+  }
+  return str;
+};
 
 export const ImageGenerator: React.FC<ImageGeneratorProps> = ({ 
   apiKey, 
@@ -60,9 +67,8 @@ export const ImageGenerator: React.FC<ImageGeneratorProps> = ({
   const [activeSection, setActiveSection] = useState<SectionType>(MODEL_NANO);
 
   // Nano Form State
-  const [prompt, setPrompt] = useState(DEFAULT_PROMPT);
-  const [aspectRatio, setAspectRatio] = useState<AspectRatio>(AspectRatio.Square);
-  const [resolution, setResolution] = useState<Resolution>(Resolution.Res_1K);
+  const [prompt, setPrompt] = useState(''); 
+  const [aspectRatio, setAspectRatio] = useState<AspectRatio>(AspectRatio.Horizontal_16_9);
   const [format, setFormat] = useState<OutputFormat>(OutputFormat.PNG);
   const [refImage, setRefImage] = useState<string | null>(null);
 
@@ -77,8 +83,6 @@ export const ImageGenerator: React.FC<ImageGeneratorProps> = ({
 
   // Execution State
   const [loading, setLoading] = useState(false);
-  
-  // Stores the final result
   const [resultData, setResultData] = useState<{ url: string; isVideo: boolean } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [statusMsg, setStatusMsg] = useState<string>('');
@@ -92,11 +96,16 @@ export const ImageGenerator: React.FC<ImageGeneratorProps> = ({
     };
   }, []);
 
-  // Restore state from history selection
+  useEffect(() => {
+    // Clear result when switching tabs to avoid confusion
+    setResultData(null);
+    setError(null);
+    setStatusMsg('');
+  }, [activeSection]);
+
   useEffect(() => {
     if (selectedItem) {
       setActiveSection(selectedItem.model);
-      
       if (selectedItem.status === 'success' && (selectedItem.resultUrl || selectedItem.imageUrl)) {
         const url = selectedItem.resultUrl || selectedItem.imageUrl;
         const isVideo = selectedItem.model === MODEL_SORA || selectedItem.model === MODEL_TOPAZ;
@@ -106,17 +115,7 @@ export const ImageGenerator: React.FC<ImageGeneratorProps> = ({
         setError('Эта задача завершилась ошибкой.');
         setResultData(null);
       }
-
-      // Restore inputs
-      if (selectedItem.model === MODEL_NANO && selectedItem.prompt) {
-        setPrompt(selectedItem.prompt);
-      }
-      if (selectedItem.model === MODEL_SORA && selectedItem.videoInputUrl) {
-         if (selectedItem.videoInputUrl.startsWith('http')) {
-           setSoraMode('link');
-           setSoraUrl(selectedItem.videoInputUrl);
-         }
-      }
+      if (selectedItem.model === MODEL_NANO && selectedItem.prompt) setPrompt(selectedItem.prompt);
     }
   }, [selectedItem]);
 
@@ -128,57 +127,29 @@ export const ImageGenerator: React.FC<ImageGeneratorProps> = ({
     }
   }, [resultData, error]);
 
-  const handleFileRead = (file: File, callback: (base64: string) => void) => {
-    if (file.size > 50 * 1024 * 1024) {
-      setError('Файл слишком большой (макс 50MB)');
-      return;
-    }
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      callback(reader.result as string);
-    };
-    reader.readAsDataURL(file);
-  };
-
   const startPolling = (taskId: string, model: ModelType, currentPrompt?: string, currentVideoUrl?: string) => {
     setStatusMsg('Обработка задачи...');
-    
     const historyId = generateId();
     const historyItemBase: HistoryItem = {
-      id: historyId,
-      taskId,
-      model,
-      status: 'waiting',
-      timestamp: Date.now()
+      id: historyId, taskId, model, status: 'waiting', timestamp: Date.now()
     };
-
     if (model === MODEL_NANO) historyItemBase.prompt = currentPrompt;
     if (model === MODEL_SORA || model === MODEL_TOPAZ) historyItemBase.videoInputUrl = currentVideoUrl || "File Upload";
-
     onHistoryUpdate(historyItemBase);
 
     pollingRef.current = window.setInterval(async () => {
       try {
         const data = await getTaskStatus(apiKey, taskId);
-        
         if (data.state === 'success') {
           if (pollingRef.current) window.clearInterval(pollingRef.current);
           setLoading(false);
           setStatusMsg('Готово!');
-          
           const urls = parseResultJson(data.resultJson);
-          const finalUrl = urls.length > 0 ? urls[0] : null;
-          
-          if (finalUrl) {
-            const isVideo = model === MODEL_SORA || model === MODEL_TOPAZ;
-            setResultData({ url: finalUrl, isVideo });
-            onHistoryUpdate({
-              ...historyItemBase,
-              status: 'success',
-              resultUrl: finalUrl
-            });
+          if (urls.length > 0) {
+            setResultData({ url: urls[0], isVideo: model === MODEL_SORA || model === MODEL_TOPAZ });
+            onHistoryUpdate({ ...historyItemBase, status: 'success', resultUrl: urls[0] });
           } else {
-            setError('Результат не найден в ответе сервера.');
+            setError('Результат не найден.');
             onHistoryUpdate({ ...historyItemBase, status: 'fail' });
           }
         } else if (data.state === 'fail') {
@@ -187,715 +158,437 @@ export const ImageGenerator: React.FC<ImageGeneratorProps> = ({
           setError(data.failMsg || 'Операция не удалась.');
           onHistoryUpdate({ ...historyItemBase, status: 'fail' });
         }
-      } catch (err) {
-        console.error(err);
-      }
+      } catch (err) { console.error(err); }
     }, 2000);
   };
 
   const handleGenerate = async () => {
-    if (activeSection === SECTION_FULL_ACCESS || activeSection === SECTION_BUSINESS) return;
-    
+    if ([SECTION_ULTRA, SECTION_BUSINESS].includes(activeSection as any)) return;
     const model = activeSection as ModelType;
-    // Safely access price
     const price = PRICES[model] || 0;
-
-    if (!apiKey) {
-      onReqTopUp();
-      return;
+    
+    // Check balance BEFORE starting
+    if (balance < price) { 
+        onReqTopUp(); 
+        return; 
     }
 
-    if (balance < price) {
-      onReqTopUp();
-      return;
-    }
-
-    setLoading(true);
-    setError(null);
-    setResultData(null);
-    setStatusMsg('Инициализация...');
-
+    setLoading(true); setError(null); setResultData(null); setStatusMsg('Инициализация...');
     try {
       let input: TaskInput;
-      
       if (model === MODEL_NANO) {
         if (!prompt.trim()) throw new Error("Введите промпт");
-        input = {
-          prompt,
-          aspect_ratio: aspectRatio,
-          resolution,
-          output_format: format,
-          image_input: refImage ? [refImage] : []
+        
+        // FIX: Send RAW BASE64 (stripped header) for Nano to fix "file type not supported"
+        const cleanImages = refImage ? [cleanBase64(refImage)] : [];
+        
+        input = { 
+            prompt, 
+            aspect_ratio: aspectRatio, 
+            resolution: Resolution.Res_4K, 
+            output_format: format, 
+            image_input: cleanImages 
         };
       } else if (model === MODEL_SORA) {
-        if (soraMode === 'link') {
-          if (!soraUrl.trim()) throw new Error("Введите URL видео");
-          input = { video_url: soraUrl };
-        } else {
-          if (!soraFile) throw new Error("Загрузите видео файл");
-          input = { video_base64: soraFile };
-        }
+        const vidUrl = soraMode === 'link' ? soraUrl : (soraFile || undefined);
+        if (!vidUrl) throw new Error("Укажите видео");
+        // For Sora video upload, usually best to send Full Data URI if using video_url field client side
+        input = { video_url: vidUrl };
       } else if (model === MODEL_TOPAZ) {
-         if (!topazFile) throw new Error("Загрузите видео файл");
-         input = { video_base64: topazFile, upscale_factor: upscaleFactor };
-      } else {
-         throw new Error("Unknown model");
-      }
-
-      onDeductBalance(price);
-
+        if (!topazFile) throw new Error("Загрузите видео");
+         // For Topaz video upload, usually best to send Full Data URI if using video_url field client side
+        input = { video_url: topazFile, upscale_factor: upscaleFactor };
+      } else throw new Error("Unknown model");
+      
+      // API CALL
       const taskId = await createTask(apiKey, model, input);
       
+      // DEDUCT BALANCE ONLY IF SUCCESSFUL
+      onDeductBalance(price);
+
       const promptLabel = model === MODEL_NANO ? prompt : undefined;
-      let urlLabel = undefined;
-      if (model === MODEL_SORA) urlLabel = soraMode === 'link' ? soraUrl : 'Sora File';
-      if (model === MODEL_TOPAZ) urlLabel = 'Topaz File';
-
+      const urlLabel = model === MODEL_SORA ? (soraMode === 'link' ? soraUrl : 'Sora File') : 'Topaz File';
       startPolling(taskId, model, promptLabel, urlLabel);
-
     } catch (err: any) {
-      setLoading(false);
-      setError(err.message || "Ошибка при создании задачи");
+      setLoading(false); 
+      setError(err.message || "Ошибка");
+      // Balance is NOT deducted here
     }
   };
 
-  // ------------------------------------------
-  // RENDER: BUSINESS TURNKEY SECTION
-  // ------------------------------------------
-  if (activeSection === SECTION_BUSINESS) {
-    return (
-      <div className="space-y-4 md:space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-20">
-         <NavigationTabs activeSection={activeSection} setActiveSection={setActiveSection} setResultData={setResultData} setError={setError} />
-
-         <div className="bg-gradient-to-br from-blue-600 to-indigo-700 p-[1px] rounded-[1.5rem] md:rounded-[2.5rem] shadow-[0_0_80px_rgba(79,70,229,0.3)] relative mx-auto w-full max-w-4xl">
-            <div className="absolute inset-0 blur-2xl bg-gradient-to-r from-blue-600 to-indigo-600 opacity-40"></div>
-            <div className="bg-dark-950 rounded-[1.4rem] md:rounded-[2.4rem] p-6 md:p-12 relative overflow-hidden z-10">
-               
-               {/* Background Elements */}
-               <div className="absolute top-0 right-0 w-64 h-64 bg-blue-500/10 blur-[80px] rounded-full pointer-events-none"></div>
-
-               {/* Header */}
-               <div className="text-center mb-8 md:mb-10 relative">
-                  <div className="inline-flex items-center gap-2 bg-blue-500/10 border border-blue-500/20 text-blue-400 px-4 py-1.5 rounded-full text-[10px] md:text-xs font-bold uppercase tracking-widest mb-4 md:mb-6">
-                      <Rocket className="w-3 h-3 md:w-4 md:h-4" /> Trend 2025
-                  </div>
-                  <h2 className="text-3xl md:text-5xl font-black text-white mb-4 leading-tight">
-                     ГОТОВЫЙ БИЗНЕС <br/>
-                     <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-400">ПОД КЛЮЧ</span>
-                  </h2>
-                  <p className="text-gray-400 max-w-xl mx-auto text-sm md:text-base leading-relaxed">
-                     Забудь про блокировки VPN и сложные настройки. Я сделаю всё за тебя.
-                     Твой личный AI-сервис — это независимость и стабильность.
-                  </p>
-               </div>
-
-               {/* Features Grid */}
-               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 mb-8 md:mb-12">
-                  <div className="bg-white/5 border border-white/10 p-5 md:p-6 rounded-2xl hover:bg-white/10 transition-colors group">
-                     <div className="w-10 h-10 md:w-12 md:h-12 bg-blue-500/20 rounded-xl flex items-center justify-center mb-4 text-blue-400 group-hover:scale-110 transition-transform">
-                        <Globe className="w-5 h-5 md:w-6 md:h-6" />
-                     </div>
-                     <h3 className="text-lg md:text-xl font-bold text-white mb-2">Упаковка в сайт</h3>
-                     <p className="text-xs md:text-sm text-gray-400">Подключу любые нейросети (Gemini, ChatGPT, Midjourney) к твоему личному сайту. Полностью готовое решение.</p>
-                  </div>
-                  <div className="bg-white/5 border border-white/10 p-5 md:p-6 rounded-2xl hover:bg-white/10 transition-colors group">
-                     <div className="w-10 h-10 md:w-12 md:h-12 bg-cyan-500/20 rounded-xl flex items-center justify-center mb-4 text-cyan-400 group-hover:scale-110 transition-transform">
-                        <ShieldCheck className="w-5 h-5 md:w-6 md:h-6" />
-                     </div>
-                     <h3 className="text-lg md:text-xl font-bold text-white mb-2">Без блокировок</h3>
-                     <p className="text-xs md:text-sm text-gray-400">Доступы к VPN постоянно блокируют, а с собственным сервисом таких проблем не будет никогда.</p>
-                  </div>
-                  <div className="bg-white/5 border border-white/10 p-5 md:p-6 rounded-2xl hover:bg-white/10 transition-colors group">
-                     <div className="w-10 h-10 md:w-12 md:h-12 bg-indigo-500/20 rounded-xl flex items-center justify-center mb-4 text-indigo-400 group-hover:scale-110 transition-transform">
-                        <Users className="w-5 h-5 md:w-6 md:h-6" />
-                     </div>
-                     <h3 className="text-lg md:text-xl font-bold text-white mb-2">Трафик и Клиенты</h3>
-                     <p className="text-xs md:text-sm text-gray-400">Покажу, как гнать трафик и монетизировать этот инструмент. Полное сопровождение.</p>
-                  </div>
-               </div>
-
-               {/* Call to Action */}
-               <div className="bg-gradient-to-r from-dark-900 to-dark-800 border border-white/10 rounded-2xl p-6 md:p-8 flex flex-col md:flex-row items-center justify-between gap-6 relative overflow-hidden">
-                  <div className="absolute inset-0 bg-blue-500/5"></div>
-                  <div className="text-center md:text-left relative z-10">
-                     <h4 className="text-xl md:text-2xl font-bold text-white mb-2">Готов обсудить проект?</h4>
-                     <p className="text-gray-400 text-xs md:text-sm">Напиши мне в Telegram, разберем твою идею и условия.</p>
-                  </div>
-                  <a 
-                    href={SECRET_TELEGRAM_LINK}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="w-full md:w-auto px-8 py-4 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl transition-all shadow-lg hover:shadow-blue-500/30 flex items-center justify-center gap-2 whitespace-nowrap relative z-10"
-                  >
-                     <Briefcase className="w-5 h-5" />
-                     Обсудить проект
-                  </a>
-               </div>
-
-            </div>
-         </div>
-      </div>
-    )
-  }
-
-  // ------------------------------------------
-  // RENDER: FULL ACCESS (PRO UNLIMITED) SECTION
-  // ------------------------------------------
-  if (activeSection === SECTION_FULL_ACCESS) {
-    return (
-      <div className="space-y-4 md:space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-20">
-        <NavigationTabs activeSection={activeSection} setActiveSection={setActiveSection} setResultData={setResultData} setError={setError} />
-
-        {/* PRO CARD */}
-        <div className="bg-gradient-to-br from-yellow-500 via-orange-500 to-red-500 p-[1px] md:p-[2px] rounded-[1.5rem] md:rounded-[2.5rem] shadow-[0_0_80px_rgba(234,179,8,0.4)] relative w-full max-w-4xl mx-auto">
-          <div className="absolute inset-0 blur-xl bg-gradient-to-r from-yellow-500 to-red-600 opacity-50"></div>
-          <div className="bg-dark-950 rounded-[1.4rem] md:rounded-[2.4rem] p-6 md:p-12 text-center relative overflow-hidden z-10">
-             
-             {/* Dynamic background effect */}
-             <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-full bg-[radial-gradient(circle_at_50%_0%,rgba(234,179,8,0.15),transparent_70%)] pointer-events-none"></div>
-
-             {/* Live Indicator */}
-             <div className="absolute top-6 right-6 flex items-center gap-2">
-                <span className="relative flex h-3 w-3">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
-                </span>
-                <span className="text-[10px] font-bold text-green-500 uppercase tracking-widest hidden sm:block">Live</span>
-             </div>
-
-             {/* Badge */}
-             <div className="inline-flex items-center gap-2 bg-yellow-500/10 border border-yellow-500/20 text-yellow-400 px-4 py-1.5 rounded-full text-[10px] md:text-xs font-bold uppercase tracking-widest mb-6 animate-pulse">
-                <Crown className="w-3 h-3 md:w-4 md:h-4" /> Google Ultra AI
-             </div>
-
-             {/* Title */}
-             <h2 className="text-3xl md:text-6xl font-black text-white mb-6 leading-tight">
-               PRO <span className="text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-orange-400">UNLIMITED</span>
-             </h2>
-             
-             {/* Description Box */}
-             <div className="bg-white/5 border border-white/10 rounded-2xl p-5 md:p-8 mb-8 max-w-3xl mx-auto backdrop-blur-sm text-left">
-                <p className="text-gray-200 text-sm md:text-lg leading-relaxed mb-6 font-medium text-center">
-                  Эксклюзивная <span className="text-yellow-400 font-bold uppercase">Складчина</span> на доступ к мощностям Google Ultra AI.
-                  <br className="hidden md:block"/> Вы получаете <span className="underline decoration-yellow-500 underline-offset-4">БЕЗЛИМИТНЫЙ</span> доступ к Nano Banana Pro и Veo на месяц.
-                </p>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="bg-black/30 p-4 rounded-xl flex items-start gap-3 border border-white/5">
-                        <RefreshCw className="w-5 h-5 text-banana-500 shrink-0 mt-0.5" />
-                        <div className="text-xs md:text-sm text-gray-300">
-                           <span className="text-white font-bold block mb-1">Вечный двигатель</span>
-                           Если кредиты заканчиваются — я мгновенно выдаю <b>НОВЫЙ</b> аккаунт. Доступ не прерывается.
-                        </div>
-                    </div>
-                    <div className="bg-black/30 p-4 rounded-xl flex items-start gap-3 border border-white/5">
-                        <Users className="w-5 h-5 text-banana-500 shrink-0 mt-0.5" />
-                        <div className="text-xs md:text-sm text-gray-300">
-                           <span className="text-white font-bold block mb-1">Комьюнити</span>
-                           Беспроблемный доступ участников складчины приближается к цифре <span className="text-banana-400 font-mono text-lg font-bold">100</span>.
-                        </div>
-                    </div>
-                </div>
-             </div>
-
-             {/* Price & Button */}
-             <div className="flex flex-col items-center gap-3 mb-8">
-                <div className="flex items-end gap-2">
-                   <span className="text-5xl md:text-7xl font-black text-white tracking-tighter">1000 ₽</span>
-                   <span className="text-lg md:text-xl text-gray-400 font-medium mb-1.5">/ месяц</span>
-                </div>
-                <span className="text-[10px] md:text-xs text-green-400 font-bold bg-green-900/30 px-3 py-1 rounded-full border border-green-500/30 flex items-center gap-1">
-                   <ShieldCheck className="w-3 h-3" /> Гарантия замены аккаунта
-                </span>
-             </div>
-
-             <button 
-               onClick={onReqTopUp}
-               className="w-full max-w-md py-4 md:py-5 bg-gradient-to-r from-yellow-500 to-red-600 text-white font-black text-lg md:text-xl rounded-2xl shadow-[0_10px_40px_rgba(234,179,8,0.3)] hover:shadow-[0_20px_60px_rgba(234,179,8,0.5)] active:scale-95 transition-all flex items-center justify-center gap-3 mx-auto"
-             >
-               <Zap className="w-6 h-6 fill-current" />
-               ВСТУПИТЬ В СКЛАДЧИНУ
-             </button>
-          </div>
-        </div>
-
-        {/* PERSONAL ACCOUNT OFFER CARD */}
-        <div className="w-full max-w-4xl mx-auto border border-purple-500/20 rounded-[1.5rem] md:rounded-[2rem] bg-dark-900/50 p-6 md:p-8 relative overflow-hidden group hover:border-purple-500/40 transition-colors">
-            {/* Background Icon */}
-            <div className="absolute -right-4 -top-4 opacity-10 group-hover:opacity-20 transition-opacity">
-               <Star className="w-40 h-40 text-purple-500 rotate-12" />
-            </div>
-            
-            <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-6 md:gap-8">
-               <div className="text-center md:text-left">
-                  <h3 className="text-xl md:text-2xl font-bold text-white mb-3 flex items-center justify-center md:justify-start gap-3">
-                     Личный Аккаунт <span className="text-purple-300 text-[10px] font-black border border-purple-500/30 px-2 py-0.5 rounded bg-purple-500/20 tracking-wider">PREMIUM</span>
-                  </h3>
-                  <div className="space-y-2 mb-4 text-sm text-gray-400 max-w-md">
-                     <p>Гарантированный безлимит на месяц в одни руки.</p>
-                     <p className="flex items-center justify-center md:justify-start gap-2 text-white font-medium">
-                        <Check className="w-4 h-4 text-purple-500" /> Включено 25,000 кредитов (~2500 видео)
-                     </p>
-                  </div>
-                  <p className="text-xs text-purple-300 font-bold bg-purple-900/20 p-2 rounded-lg inline-block border border-purple-500/20">
-                     🔥 Если кредиты закончатся — выдам ЕЩЁ ОДИН аккаунт бесплатно.
-                  </p>
-               </div>
-               
-               <div className="flex flex-col items-center gap-3 shrink-0 w-full md:w-auto">
-                  <span className="text-3xl font-black text-white">4000 ₽</span>
-                  <a 
-                     href={SECRET_TELEGRAM_LINK}
-                     target="_blank"
-                     rel="noreferrer"
-                     className="w-full md:w-auto px-6 py-3 bg-white/5 hover:bg-purple-600 border border-purple-500/30 hover:border-purple-500 text-white font-bold rounded-xl transition-all flex items-center justify-center gap-2"
-                  >
-                     <Briefcase className="w-4 h-4" />
-                     Купить Личный
-                  </a>
-               </div>
-            </div>
-        </div>
-      </div>
-    );
-  }
+  if (activeSection === SECTION_BUSINESS) return <BusinessView activeSection={activeSection} setActiveSection={setActiveSection} setResultData={setResultData} setError={setError} />;
+  if (activeSection === SECTION_ULTRA) return <UltraAccessView activeSection={activeSection} setActiveSection={setActiveSection} setResultData={setResultData} setError={setError} onReqTopUp={onReqTopUp} />;
 
   const currentPrice = PRICES[activeSection as ModelType] || 0;
 
   return (
-    <div className="space-y-4 md:space-y-8 pb-20">
-      
+    <div className="space-y-6 pb-24 md:pb-12">
       <NavigationTabs activeSection={activeSection} setActiveSection={setActiveSection} setResultData={setResultData} setError={setError} />
 
-      {/* MAIN TOOLS INTERFACE */}
-      <div className="bg-dark-900/40 backdrop-blur-xl border border-white/10 rounded-[1.5rem] md:rounded-[2.5rem] p-1 shadow-2xl relative overflow-hidden ring-1 ring-white/5 w-full max-w-4xl mx-auto">
-        <div className={`absolute top-0 left-0 right-0 h-1 opacity-75 ${
-           activeSection === MODEL_NANO ? 'bg-gradient-to-r from-transparent via-banana-500 to-transparent' : 
-           activeSection === MODEL_SORA ? 'bg-gradient-to-r from-transparent via-pink-500 to-transparent' :
-           'bg-gradient-to-r from-transparent via-cyan-400 to-transparent'
+      {/* MAIN GENERATOR CARD - ULTRA DESIGN */}
+      <div className="relative w-full max-w-4xl mx-auto group perspective-1000">
+        {/* Massive Glow */}
+        <div className={`absolute -inset-4 bg-gradient-to-b opacity-40 blur-3xl rounded-[3rem] transition-all duration-700 ${
+           activeSection === MODEL_NANO ? 'from-banana-500/60 to-transparent' : 
+           activeSection === MODEL_SORA ? 'from-pink-500/60 to-transparent' :
+           'from-blue-500/60 to-transparent'
         }`}></div>
 
-        <div className="bg-dark-950/80 rounded-[1.4rem] md:rounded-[2.3rem] p-5 md:p-10">
-            
-            {/* Header & Price */}
-            <div className="flex flex-col md:flex-row md:items-start justify-between gap-6 mb-8">
-               <div className="flex-1 text-center md:text-left">
-                  {activeSection === MODEL_NANO && (
-                     <>
-                        <h2 className="text-2xl md:text-4xl font-extrabold text-white">Nano <span className="text-banana-500">Banana Pro</span></h2>
-                        <p className="text-gray-400 mt-2 text-xs md:text-sm">Профессиональная нейрофотосессия для брендов.</p>
-                     </>
-                  )}
-                  {activeSection === MODEL_SORA && (
-                     <>
-                        <h2 className="text-2xl md:text-4xl font-extrabold text-white">Sora <span className="text-pink-500">Watermark Remover</span></h2>
-                        <p className="text-gray-400 mt-2 text-xs md:text-sm">Очистка видео от водяных знаков.</p>
-                     </>
-                  )}
-                  {activeSection === MODEL_TOPAZ && (
-                     <>
-                        <h2 className="text-2xl md:text-4xl font-extrabold text-white">Topaz <span className="text-cyan-400">Video Upscale</span></h2>
-                        <p className="text-gray-400 mt-2 text-xs md:text-sm">Улучшение качества видео до 4K (AI Restore).</p>
-                     </>
-                  )}
+        <div className="relative bg-dark-950/80 backdrop-blur-3xl border border-white/10 rounded-[2.5rem] p-6 md:p-10 shadow-2xl overflow-hidden ring-1 ring-white/5">
+            {/* Header Area */}
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-10 border-b border-white/5 pb-8">
+               <div>
+                  {activeSection === MODEL_NANO && <h2 className="text-4xl md:text-5xl font-black text-white tracking-tighter drop-shadow-xl">Nano <span className="text-banana-500">Banana Pro</span></h2>}
+                  {activeSection === MODEL_SORA && <h2 className="text-4xl md:text-5xl font-black text-white tracking-tighter drop-shadow-xl">Sora <span className="text-pink-500">Remover</span></h2>}
+                  {activeSection === MODEL_TOPAZ && <h2 className="text-4xl md:text-5xl font-black text-white tracking-tighter drop-shadow-xl">Topaz <span className="text-blue-500">4K</span></h2>}
+                  <div className="mt-3 inline-flex items-center gap-2 px-3 py-1 bg-white/5 rounded-full border border-white/5">
+                      <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></div>
+                      <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">Сохраняем доступ к лучшим инструментам</span>
+                  </div>
                </div>
                
-               {/* Price Display - FIXED PRICE ONLY */}
-               <div 
-                  className="relative group cursor-pointer transform hover:scale-105 transition-transform duration-300 mx-auto md:mx-0 w-full md:w-auto" 
-                  onClick={onReqTopUp}
-               >
-                  <div className={`absolute -inset-0.5 bg-gradient-to-r blur-lg opacity-40 group-hover:opacity-80 transition duration-500 animate-pulse ${
-                     activeSection === MODEL_NANO ? 'from-yellow-400 via-orange-500 to-red-500' :
-                     activeSection === MODEL_SORA ? 'from-pink-400 via-purple-500 to-indigo-500' :
-                     'from-cyan-400 via-blue-500 to-teal-400'
-                  }`}></div>
-                  
-                  <div className="relative bg-dark-900 border border-white/20 px-6 md:px-8 py-3 md:py-4 rounded-xl md:rounded-2xl flex flex-row md:flex-col items-center justify-between md:justify-center gap-4 md:gap-0 shadow-2xl">
-                     <span className="text-[10px] text-gray-400 font-bold uppercase tracking-widest md:hidden">
-                        Стоимость
-                     </span>
-                     <div className="flex items-baseline gap-1">
-                        <span className={`text-3xl md:text-5xl font-black leading-none tracking-tighter ${balance < currentPrice ? 'text-red-500' : 'text-white'}`}>
-                           {currentPrice}
-                        </span>
-                        <span className="text-lg md:text-xl font-bold text-gray-400">₽</span>
-                     </div>
-                     <span className="text-[9px] text-gray-500 font-bold uppercase tracking-widest mt-1 hidden md:block">
-                        за генерацию
-                     </span>
-                  </div>
-               </div>
-            </div>
-
-            {/* NANO FORM */}
-            {activeSection === MODEL_NANO && (
-              <div className="space-y-6 md:space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                 {/* Prompt Area */}
-                 <div className="space-y-3">
-                    <div className="flex justify-between items-end">
-                      <label className="text-xs font-bold text-gray-500 uppercase tracking-wider ml-1">Ваш запрос</label>
-                      <button onClick={() => setPrompt('')} className="text-[10px] text-gray-500 hover:text-white flex items-center gap-1">
-                        <X className="w-3 h-3" /> Очистить
-                      </button>
-                    </div>
-                    <textarea
-                      value={prompt}
-                      onChange={(e) => setPrompt(e.target.value)}
-                      className="w-full bg-dark-900/50 border border-white/10 text-gray-100 rounded-2xl p-4 md:p-5 h-32 md:h-32 text-sm leading-relaxed focus:ring-2 focus:ring-banana-500/30 outline-none resize-none placeholder:text-dark-700 shadow-inner"
-                      placeholder="Опишите сцену, освещение, стиль..."
-                    />
-                 </div>
-
-                 {/* Controls Grid */}
-                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="space-y-6">
-                       <div className="space-y-3">
-                          <label className="text-xs font-bold text-gray-500 uppercase tracking-wider ml-1">Формат</label>
-                          <div className="grid grid-cols-3 gap-2">
-                            {ASPECT_RATIOS.slice(0, 6).map((ratio) => (
-                              <button
-                                key={ratio}
-                                onClick={() => setAspectRatio(ratio)}
-                                className={`text-xs py-2.5 rounded-lg border transition-all ${
-                                  aspectRatio === ratio 
-                                    ? 'bg-banana-500 text-dark-950 border-banana-500 font-bold' 
-                                    : 'bg-dark-900/50 border-white/5 text-gray-400 hover:bg-dark-800'
-                                }`}
-                              >
-                                {ratio}
-                              </button>
-                            ))}
-                          </div>
-                       </div>
-                       
-                       <div className="space-y-3">
-                          <label className="text-xs font-bold text-gray-500 uppercase tracking-wider ml-1">Разрешение</label>
-                          <div className="grid grid-cols-3 gap-2">
-                            {RESOLUTIONS.map((res) => (
-                              <button
-                                key={res}
-                                onClick={() => setResolution(res)}
-                                className={`text-xs py-2.5 rounded-lg border transition-all ${
-                                  resolution === res 
-                                    ? 'bg-banana-500 text-dark-950 border-banana-500 font-bold' 
-                                    : 'bg-dark-900/50 border-white/5 text-gray-400 hover:bg-dark-800'
-                                }`}
-                              >
-                                {res}
-                              </button>
-                            ))}
-                          </div>
-                       </div>
-                    </div>
-
-                    <div className="space-y-3">
-                        <label className="text-xs font-bold text-gray-500 uppercase tracking-wider ml-1">Референс (Фото)</label>
-                        <div className="relative h-32 md:h-full min-h-[120px] group">
-                           <input type="file" accept="image/*" onChange={(e) => {
-                             if(e.target.files?.[0]) handleFileRead(e.target.files[0], setRefImage)
-                           }} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20" />
-                           <div className={`absolute inset-0 rounded-2xl border-2 border-dashed transition-all flex flex-col items-center justify-center gap-2 p-4 ${
-                              refImage ? 'border-banana-500/30 bg-dark-900/30' : 'border-white/10 bg-dark-900/30 hover:border-banana-500/30'
-                           }`}>
-                              {refImage ? (
-                                <div className="flex items-center gap-2 text-banana-500"><Check className="w-5 h-5" /><span className="text-sm font-bold">Загружено</span></div>
-                              ) : (
-                                <><UploadCloud className="w-6 h-6 text-gray-500" /><span className="text-xs text-gray-500">Загрузить</span></>
-                              )}
-                           </div>
-                        </div>
-                    </div>
-                 </div>
-              </div>
-            )}
-
-            {/* SORA FORM */}
-            {activeSection === MODEL_SORA && (
-               <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                  <div className="flex bg-dark-950 p-1 rounded-xl w-full md:w-fit border border-white/5 md:mx-auto">
-                     <button 
-                       onClick={() => setSoraMode('link')}
-                       className={`flex-1 md:flex-none px-6 py-2 rounded-lg text-sm font-bold transition-all flex items-center justify-center gap-2 ${soraMode === 'link' ? 'bg-pink-600 text-white shadow-lg' : 'text-gray-400 hover:text-white'}`}
-                     >
-                       <LinkIcon className="w-4 h-4" /> По ссылке
-                     </button>
-                     <button 
-                       onClick={() => setSoraMode('file')}
-                       className={`flex-1 md:flex-none px-6 py-2 rounded-lg text-sm font-bold transition-all flex items-center justify-center gap-2 ${soraMode === 'file' ? 'bg-pink-600 text-white shadow-lg' : 'text-gray-400 hover:text-white'}`}
-                     >
-                       <FileVideo className="w-4 h-4" /> Файл
-                     </button>
-                  </div>
-
-                  {soraMode === 'link' ? (
-                    <div className="space-y-2">
-                       <label className="text-xs font-bold text-gray-500 uppercase tracking-wider ml-1">Sora Video URL</label>
-                       <div className="relative">
-                          <input
-                             type="text"
-                             value={soraUrl}
-                             onChange={(e) => setSoraUrl(e.target.value)}
-                             className="w-full bg-dark-900 border border-white/10 text-gray-100 rounded-xl pl-12 pr-4 py-4 text-sm focus:ring-2 focus:ring-pink-500/30 outline-none"
-                             placeholder="https://sora.chatgpt.com/..."
-                          />
-                          <LinkIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
-                       </div>
-                    </div>
-                  ) : (
-                    <div className="space-y-2">
-                       <label className="text-xs font-bold text-gray-500 uppercase tracking-wider ml-1">Загрузить видео</label>
-                       <div className="relative h-48 group">
-                           <input type="file" accept="video/*" onChange={(e) => {
-                             if(e.target.files?.[0]) handleFileRead(e.target.files[0], setSoraFile)
-                           }} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20" />
-                           <div className={`absolute inset-0 rounded-2xl border-2 border-dashed transition-all flex flex-col items-center justify-center gap-2 p-4 ${
-                              soraFile ? 'border-pink-500/30 bg-dark-900/30' : 'border-white/10 bg-dark-900/30 hover:border-pink-500/30'
-                           }`}>
-                              {soraFile ? (
-                                <div className="flex flex-col items-center gap-2 text-pink-500">
-                                   <div className="w-12 h-12 bg-pink-500/20 rounded-full flex items-center justify-center">
-                                      <Check className="w-6 h-6" />
-                                   </div>
-                                   <span className="text-sm font-bold">Видео выбрано</span>
-                                   <span className="text-xs text-pink-400/70">Нажмите чтобы заменить</span>
-                                </div>
-                              ) : (
-                                <div className="flex flex-col items-center gap-2 text-gray-500 group-hover:text-pink-400 transition-colors">
-                                   <UploadCloud className="w-10 h-10 mb-2" />
-                                   <span className="text-sm font-bold">Перетащите видео или нажмите</span>
-                                   <span className="text-xs opacity-50">Максимальный размер 50MB</span>
-                                </div>
-                              )}
-                           </div>
-                       </div>
-                    </div>
-                  )}
-               </div>
-            )}
-
-            {/* TOPAZ FORM */}
-            {activeSection === MODEL_TOPAZ && (
-               <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                   <div className="space-y-2">
-                     <label className="text-xs font-bold text-gray-500 uppercase tracking-wider ml-1">Загрузка видео (MP4/MOV)</label>
-                     <div className="relative h-48 group">
-                           <input type="file" accept="video/*" onChange={(e) => {
-                             if(e.target.files?.[0]) handleFileRead(e.target.files[0], setTopazFile)
-                           }} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20" />
-                           <div className={`absolute inset-0 rounded-2xl border-2 border-dashed transition-all flex flex-col items-center justify-center gap-2 p-4 ${
-                              topazFile ? 'border-cyan-500/30 bg-dark-900/30' : 'border-white/10 bg-dark-900/30 hover:border-cyan-500/30'
-                           }`}>
-                              {topazFile ? (
-                                <div className="flex flex-col items-center gap-2 text-cyan-500">
-                                  <div className="w-12 h-12 bg-cyan-500/20 rounded-full flex items-center justify-center">
-                                      <Check className="w-6 h-6" />
-                                   </div>
-                                  <span className="text-sm font-bold">Видео готово к обработке</span>
-                                  <span className="text-xs text-cyan-400/70">Нажмите чтобы заменить</span>
-                                </div>
-                              ) : (
-                                <div className="flex flex-col items-center gap-2 text-gray-500 group-hover:text-cyan-400 transition-colors">
-                                  <UploadCloud className="w-10 h-10 mb-2" />
-                                  <span className="text-sm font-medium">Перетащите видео или нажмите</span>
-                                  <span className="text-[10px] uppercase opacity-70">Макс 50MB</span>
-                                </div>
-                              )}
-                           </div>
-                       </div>
-                  </div>
-
-                  <div className="space-y-2">
-                     <label className="text-xs font-bold text-gray-500 uppercase tracking-wider ml-1">Фактор увеличения</label>
-                     <div className="flex gap-4">
-                        <button
-                           className="w-full py-4 rounded-xl border font-bold text-sm transition-all bg-cyan-500/10 border-cyan-500 text-cyan-400 cursor-default flex items-center justify-center gap-2"
-                        >
-                           <MonitorPlay className="w-4 h-4" /> 4x (4K Ultra)
-                        </button>
-                     </div>
-                  </div>
-               </div>
-            )}
-
-            {/* GENERATE BUTTON */}
-            <div className="mt-8 md:mt-10 pt-6 border-t border-white/5">
-               <button
-                  onClick={handleGenerate}
-                  disabled={loading}
-                  className={`w-full py-5 font-extrabold text-lg uppercase tracking-wide rounded-xl md:rounded-2xl shadow-xl disabled:opacity-50 disabled:cursor-not-allowed transition-all transform hover:-translate-y-1 active:scale-[0.98] flex items-center justify-center gap-3 ${
-                     activeSection === MODEL_NANO ? 'bg-banana-500 text-dark-950 hover:bg-banana-400' :
-                     activeSection === MODEL_SORA ? 'bg-pink-600 text-white hover:bg-pink-500' :
-                     'bg-cyan-500 text-dark-950 hover:bg-cyan-400'
-                  }`}
-               >
-                  {loading ? (
-                     <><Loader2 className="w-6 h-6 animate-spin" /> {statusMsg}</>
-                  ) : (
-                     <><Zap className="w-6 h-6 fill-current" /> {activeSection === MODEL_NANO ? 'Сгенерировать' : 'Запустить обработку'}</>
-                  )}
-               </button>
-            </div>
-        </div>
-      </div>
-
-      {/* RESULT AREA - Visible whenever there is a resultData */}
-      {(resultData || error) && (
-         <div ref={resultRef} className="animate-in fade-in slide-in-from-bottom-8 duration-500 scroll-mt-24 w-full max-w-4xl mx-auto">
-            {error ? (
-                <div className="bg-red-900/20 border border-red-500/30 p-6 rounded-2xl text-center text-red-200">
-                   <AlertTriangle className="w-8 h-8 mx-auto mb-2 text-red-500" />
-                   {error}
-                </div>
-            ) : (
-                <div className="bg-dark-900 rounded-[1.5rem] md:rounded-[2rem] overflow-hidden border border-white/10 shadow-2xl relative group">
-                   <div className="p-4 bg-black/50 flex justify-end gap-2 backdrop-blur absolute w-full z-10 top-0 left-0 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <a href={resultData!.url} target="_blank" rel="noreferrer" className="p-2 bg-white/10 rounded-full hover:bg-white/20 text-white"><Maximize2 className="w-5 h-5" /></a>
-                      <a href={resultData!.url} download className="p-2 bg-banana-500 rounded-full text-black hover:bg-banana-400"><Download className="w-5 h-5" /></a>
+               <div className="relative group/price self-end md:self-auto">
+                   <div className={`absolute inset-0 blur-xl opacity-60 rounded-2xl ${
+                       activeSection === MODEL_NANO ? 'bg-banana-500' : 
+                       activeSection === MODEL_SORA ? 'bg-pink-500' : 'bg-blue-500'
+                   }`}></div>
+                   <div className="relative bg-black/60 backdrop-blur-md border border-white/10 px-8 py-4 rounded-2xl flex flex-col items-center min-w-[120px]">
+                       <span className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mb-1">СТОИМОСТЬ</span>
+                       <span className="text-3xl font-black text-white tracking-tight">{currentPrice}₽</span>
                    </div>
-                   
-                   {resultData!.isVideo ? (
-                      <video 
-                        src={resultData!.url} 
-                        controls 
-                        autoPlay 
-                        loop 
-                        className="w-full aspect-video object-contain bg-black/90" 
-                      />
-                   ) : (
-                      <img 
-                        src={resultData!.url} 
-                        alt="Result" 
-                        className="w-full h-auto object-contain bg-black/90 min-h-[300px]" 
-                      />
-                   )}
-                </div>
-            )}
-         </div>
-      )}
-
-      {/* NANO PRESETS FEED (Instagram Style) - ONLY FOR NANO */}
-      {activeSection === MODEL_NANO && (
-         <div className="space-y-6 pt-8 animate-in fade-in slide-in-from-bottom-8 duration-700 delay-100">
-            <div className="flex items-center gap-4">
-               <div className="h-px bg-white/10 flex-1"></div>
-               <span className="text-gray-500 text-xs font-bold uppercase tracking-widest">Лента идей</span>
-               <div className="h-px bg-white/10 flex-1"></div>
+               </div>
             </div>
 
-            <p className="text-center text-gray-500 text-sm">
-               Тут я буду добавлять все промпты для нейросъемок
-            </p>
-
-            <div className="grid gap-8 max-w-2xl mx-auto">
-               {NANO_PRESETS.map((preset) => (
-                  <div key={preset.id} className="bg-dark-900 rounded-[2rem] overflow-hidden border border-white/5 shadow-2xl group">
-                     {/* Header */}
-                     <div className="p-4 flex items-center gap-3 border-b border-white/5">
-                        <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-banana-500 to-orange-500 p-0.5">
-                           <div className="w-full h-full rounded-full bg-black overflow-hidden">
-                              <img src={preset.image} className="w-full h-full object-cover opacity-80" alt="avatar" />
-                           </div>
-                        </div>
-                        <div>
-                           <h4 className="text-white font-bold text-sm">{preset.label}</h4>
-                           <p className="text-xs text-gray-500">Nano Banana Pro • 8K</p>
-                        </div>
-                        <button 
-                           onClick={() => {
-                              setPrompt(preset.prompt);
-                              window.scrollTo({ top: 0, behavior: 'smooth' });
-                           }}
-                           className="ml-auto px-4 py-1.5 bg-white/5 hover:bg-banana-500 hover:text-black rounded-full text-xs font-bold text-banana-500 transition-all"
-                        >
-                           Использовать
-                        </button>
+            {/* MARKETING BULLETS */}
+            <div className="mb-10 grid gap-4 bg-white/5 rounded-3xl p-6 border border-white/5 shadow-inner">
+               {MARKETING_COPY[activeSection as ModelType]?.map((point, i) => (
+                  <div key={i} className="flex items-start gap-4 text-sm md:text-base text-gray-200 font-medium">
+                     <div className={`mt-0.5 p-1 rounded-full shrink-0 ${
+                         activeSection === MODEL_NANO ? 'bg-banana-500 text-black' :
+                         activeSection === MODEL_SORA ? 'bg-pink-500 text-white' :
+                         'bg-blue-500 text-white'
+                     }`}>
+                        <Check className="w-3 h-3 stroke-[3]" />
                      </div>
-
-                     {/* Image */}
-                     <div className="aspect-square md:aspect-[4/5] relative overflow-hidden">
-                        <img src={preset.image} alt={preset.label} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
-                     </div>
-
-                     {/* Content */}
-                     <div className="p-5 space-y-3">
-                        <div className="flex gap-4">
-                           <button 
-                             onClick={() => {
-                              setPrompt(preset.prompt);
-                              window.scrollTo({ top: 0, behavior: 'smooth' });
-                             }}
-                             className="flex items-center gap-2 text-white hover:text-banana-500 transition-colors"
-                           >
-                              <Zap className="w-6 h-6" />
-                           </button>
-                           <button className="text-gray-500 hover:text-white transition-colors">
-                              <ExternalLink className="w-6 h-6" />
-                           </button>
-                        </div>
-                        <div className="space-y-1">
-                           <p className="text-sm text-gray-300 line-clamp-3">
-                              <span className="font-bold text-white mr-2">Prompt:</span>
-                              {preset.prompt}
-                           </p>
-                        </div>
-                        <button 
-                           onClick={() => {
-                              setPrompt(preset.prompt);
-                              window.scrollTo({ top: 0, behavior: 'smooth' });
-                           }}
-                           className="text-xs text-gray-500 uppercase font-bold tracking-wider hover:text-banana-500 transition-colors flex items-center gap-1"
-                        >
-                           Применить этот стиль <ChevronRight className="w-3 h-3" />
-                        </button>
-                     </div>
+                     <span className="leading-snug">{point}</span>
                   </div>
                ))}
             </div>
+
+            {/* FORM INPUTS */}
+            <div className="space-y-8">
+                {activeSection === MODEL_NANO && (
+                   <div className="space-y-8 animate-in fade-in zoom-in-95 duration-500">
+                      <div className="relative group">
+                        <div className={`absolute -inset-0.5 rounded-3xl bg-gradient-to-r opacity-30 group-focus-within:opacity-100 transition-opacity duration-500 ${
+                            activeSection === MODEL_NANO ? 'from-banana-500 to-banana-600' : 'from-gray-700 to-gray-600'
+                        }`}></div>
+                        <textarea value={prompt} onChange={(e) => setPrompt(e.target.value)} 
+                          className="relative w-full bg-black border border-white/10 rounded-2xl p-6 text-base text-gray-100 focus:outline-none h-40 resize-none placeholder:text-gray-600 shadow-xl" 
+                          placeholder="Опишите ваше идеальное изображение..." 
+                        />
+                      </div>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                         {/* Aspect Ratio */}
+                         <div className="bg-black/40 rounded-3xl p-5 border border-white/5">
+                           <label className="text-xs font-black text-gray-500 uppercase mb-4 flex items-center gap-2"><Star className="w-3 h-3" /> Формат</label>
+                           <div className="grid grid-cols-2 gap-3">
+                                {NANO_RATIOS.map(r => (
+                                    <button key={r} onClick={() => setAspectRatio(r)} className={`py-3 text-xs rounded-xl font-bold transition-all border ${aspectRatio === r ? 'bg-banana-500 border-banana-500 text-black shadow-lg shadow-banana-500/30 transform scale-105' : 'bg-white/5 border-transparent text-gray-400 hover:bg-white/10'}`}>{r}</button>
+                                ))}
+                           </div>
+                         </div>
+
+                         {/* Quality (Locked 4K) */}
+                         <div className="bg-black/40 rounded-3xl p-5 border border-white/5">
+                           <label className="text-xs font-black text-gray-500 uppercase mb-4 flex items-center gap-2"><Zap className="w-3 h-3" /> Качество</label>
+                           <div className="h-full flex items-center justify-center pb-6">
+                                <div className="px-6 py-3 bg-gradient-to-r from-banana-500/20 to-banana-600/20 border border-banana-500/50 text-banana-500 rounded-xl text-sm font-black flex items-center gap-2 shadow-[0_0_20px_rgba(254,220,0,0.1)]">
+                                    <Maximize2 className="w-4 h-4" /> 4K ULTRA
+                                </div>
+                           </div>
+                         </div>
+
+                         {/* Reference */}
+                         <div className="bg-black/40 rounded-3xl p-5 border border-white/5">
+                           <label className="text-xs font-black text-gray-500 uppercase mb-4 flex items-center gap-2"><Camera className="w-3 h-3" /> Референс</label>
+                           <FileUpload color="banana" file={refImage} setFile={setRefImage} small />
+                        </div>
+                      </div>
+                   </div>
+                )}
+
+                {activeSection === MODEL_SORA && (
+                   <div className="space-y-8 animate-in fade-in zoom-in-95 duration-500">
+                      <div className="flex justify-center">
+                          <div className="bg-black/60 p-1.5 rounded-2xl border border-white/10 inline-flex">
+                             <button onClick={() => setSoraMode('link')} className={`px-8 py-3 rounded-xl text-sm font-bold transition-all ${soraMode === 'link' ? 'bg-pink-600 text-white shadow-lg shadow-pink-500/30' : 'text-gray-400 hover:text-white'}`}>Ссылка</button>
+                             <button onClick={() => setSoraMode('file')} className={`px-8 py-3 rounded-xl text-sm font-bold transition-all ${soraMode === 'file' ? 'bg-pink-600 text-white shadow-lg shadow-pink-500/30' : 'text-gray-400 hover:text-white'}`}>Файл</button>
+                          </div>
+                      </div>
+                      {soraMode === 'link' ? (
+                         <div className="relative group">
+                           <div className="absolute inset-y-0 left-5 flex items-center pointer-events-none text-pink-500"><LinkIcon className="w-5 h-5" /></div>
+                           <input type="text" value={soraUrl} onChange={(e) => setSoraUrl(e.target.value)} className="w-full bg-black/40 border border-white/10 rounded-2xl pl-14 pr-6 py-6 text-base focus:border-pink-500/50 focus:ring-1 focus:ring-pink-500/20 outline-none transition-all placeholder:text-gray-600 shadow-inner" placeholder="Вставьте ссылку на видео..." />
+                         </div>
+                      ) : (
+                         <FileUpload color="pink" file={soraFile} setFile={setSoraFile} />
+                      )}
+                   </div>
+                )}
+
+                {activeSection === MODEL_TOPAZ && (
+                   <div className="space-y-8 animate-in fade-in zoom-in-95 duration-500">
+                      <FileUpload color="blue" file={topazFile} setFile={setTopazFile} />
+                      <div className="py-4 px-6 bg-blue-500/10 border border-blue-500/20 rounded-2xl text-center text-blue-300 text-sm font-bold flex items-center justify-center gap-3">
+                         <div className="p-1.5 bg-blue-500 rounded-full text-black"><MonitorPlay className="w-4 h-4 fill-current" /></div>
+                         Автоматическое улучшение до 4K (Ultra AI)
+                      </div>
+                   </div>
+                )}
+
+                {/* MASSIVE ACTION BUTTON */}
+                <button 
+                    onClick={handleGenerate} 
+                    disabled={loading} 
+                    className={`w-full py-6 rounded-2xl font-black text-base uppercase tracking-widest transition-all transform hover:scale-[1.01] active:scale-[0.99] flex items-center justify-center gap-4 relative overflow-hidden group/btn ${
+                    activeSection === MODEL_NANO ? 'bg-banana-500 text-black' :
+                    activeSection === MODEL_SORA ? 'bg-pink-600 text-white' :
+                    'bg-blue-600 text-white'
+                } shadow-2xl`}>
+                    <div className="absolute inset-0 bg-white/20 translate-y-full group-hover/btn:translate-y-0 transition-transform duration-300 blur-xl"></div>
+                    {loading ? <Loader2 className="w-6 h-6 animate-spin relative z-10" /> : <Play className="w-6 h-6 fill-current relative z-10" />}
+                    <span className="relative z-10">{loading ? 'ОБРАБОТКА...' : 'ЗАПУСТИТЬ ПРОЦЕСС'}</span>
+                </button>
+            </div>
+        </div>
+
+        {/* ADVERTISING FOOTER */}
+        <div className="mt-8 text-center animate-in fade-in slide-in-from-bottom-4 duration-1000">
+            <a href={SECRET_TELEGRAM_LINK} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 text-gray-500 hover:text-white transition-colors text-xs uppercase tracking-widest font-bold group">
+                Заказать нейро видео креатив под ключ <Send className="w-3 h-3 group-hover:translate-x-1 transition-transform" />
+            </a>
+        </div>
+      </div>
+
+      {/* Result Area */}
+      {(resultData || error) && (
+         <div ref={resultRef} className="animate-in fade-in slide-in-from-bottom-8 duration-700 ease-out max-w-4xl mx-auto pt-10">
+            {error ? (
+               <div className="bg-red-950/40 border border-red-500/20 p-8 rounded-[2rem] text-red-300 text-base text-center shadow-2xl backdrop-blur-md">{error}</div>
+            ) : (
+               <div className="bg-black border border-white/10 rounded-[2.5rem] p-3 shadow-2xl relative group overflow-hidden ring-1 ring-white/10">
+                  <div className="rounded-[2rem] overflow-hidden relative shadow-inner bg-dark-900">
+                    {resultData!.isVideo ? (
+                        <video src={resultData!.url} controls className="w-full aspect-video bg-black" />
+                    ) : (
+                        <img src={resultData!.url} className="w-full h-auto" alt="Result" />
+                    )}
+                  </div>
+                  <a href={resultData!.url} download className="absolute top-8 right-8 p-4 bg-white text-black rounded-2xl shadow-xl opacity-0 group-hover:opacity-100 transition-all hover:bg-gray-200 transform hover:scale-105 active:scale-95 z-20"><Download className="w-6 h-6" /></a>
+               </div>
+            )}
          </div>
       )}
-
     </div>
   );
 };
+
+// Sub-components
+const FileUpload = ({ color, file, setFile, small }: any) => (
+   <div className={`relative group cursor-pointer overflow-hidden rounded-3xl transition-all duration-300 ${small ? 'h-full min-h-[120px]' : 'h-48'}`}>
+      <input type="file" onChange={(e) => { if(e.target.files?.[0]) { const r = new FileReader(); r.onload = () => setFile(r.result); r.readAsDataURL(e.target.files[0]); }}} className="absolute inset-0 z-20 opacity-0 w-full h-full cursor-pointer" />
+      <div className={`absolute inset-0 border-2 border-dashed flex flex-col items-center justify-center gap-4 transition-all duration-300 ${file ? `border-${color}-500 bg-${color}-500/10` : 'border-white/10 bg-black/40 group-hover:bg-white/5 group-hover:border-white/30'}`}>
+         {file && !small && (
+             <div className="absolute inset-0 opacity-40 bg-cover bg-center" style={{backgroundImage: `url(${file})`}}></div>
+         )}
+         <div className={`p-4 rounded-full transition-all relative z-10 shadow-lg ${file ? `bg-${color}-500 text-black` : 'bg-white/5 text-gray-400 group-hover:scale-110 group-hover:bg-white/10 group-hover:text-white'}`}>
+            {file ? <Check className="w-6 h-6 stroke-[3]" /> : <UploadCloud className="w-8 h-8" />}
+         </div>
+         {!small && <div className="text-center relative z-10">
+             <span className={`text-sm font-bold block uppercase tracking-wide ${file ? `text-${color}-500` : 'text-gray-400 group-hover:text-white'}`}>{file ? 'Файл загружен' : 'Перетащите файл'}</span>
+         </div>}
+      </div>
+   </div>
+);
+
+const BusinessView = ({ activeSection, setActiveSection, setResultData, setError }: any) => (
+  <div className="pb-20 space-y-6">
+     <NavigationTabs activeSection={activeSection} setActiveSection={setActiveSection} setResultData={setResultData} setError={setError} />
+     <div className="max-w-4xl mx-auto px-4">
+        <div className="bg-gradient-to-br from-blue-700 to-indigo-950 rounded-[3rem] p-10 md:p-16 text-center relative overflow-hidden shadow-[0_20px_60px_-15px_rgba(63,94,244,0.5)] ring-1 ring-white/20">
+            <div className="absolute top-0 right-0 w-96 h-96 bg-blue-400/20 rounded-full blur-[100px] -mr-20 -mt-20 pointer-events-none"></div>
+            <div className="absolute bottom-0 left-0 w-96 h-96 bg-indigo-500/20 rounded-full blur-[100px] -ml-20 -mb-20 pointer-events-none"></div>
+            
+            <div className="relative z-10 flex flex-col items-center">
+               <div className="inline-block bg-white/10 backdrop-blur-md px-5 py-2 rounded-full text-xs font-bold uppercase tracking-widest text-blue-200 mb-8 border border-white/20 shadow-lg">
+                  Trend 2025
+               </div>
+               <h2 className="text-4xl md:text-7xl font-black text-white mb-8 leading-[0.9] tracking-tighter drop-shadow-2xl">
+                   БИЗНЕС <br/><span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-300 to-white">ПОД КЛЮЧ</span>
+               </h2>
+               <p className="text-blue-100 text-lg md:text-xl mb-12 max-w-2xl mx-auto leading-relaxed font-medium">
+                  Собственный AI-сервис без блокировок VPN. Полная упаковка, подключение нейросетей и обучение трафику. Запустите свой стартап за 1 день.
+               </p>
+               <a href={SECRET_TELEGRAM_LINK} target="_blank" className="inline-flex items-center gap-4 px-12 py-6 bg-white text-blue-800 font-black text-lg rounded-2xl hover:bg-blue-50 transition-all shadow-xl hover:shadow-2xl hover:-translate-y-1 group">
+                  <Briefcase className="w-6 h-6 group-hover:scale-110 transition-transform" /> Обсудить проект
+               </a>
+            </div>
+        </div>
+     </div>
+  </div>
+);
+
+const ProductCard = ({ title, price, features, color, onBuy, recommended }: any) => (
+    <div className={`relative bg-dark-950/60 backdrop-blur-xl border ${recommended ? `border-${color}-500/50 shadow-[0_0_40px_rgba(0,0,0,0.3)]` : 'border-white/5'} rounded-[2rem] p-8 flex flex-col hover:transform hover:scale-[1.02] transition-all duration-300 group`}>
+        {recommended && (
+            <div className={`absolute -top-3 left-1/2 -translate-x-1/2 bg-${color}-500 text-black text-[10px] font-black uppercase px-4 py-1.5 rounded-full tracking-wider shadow-lg`}>
+                Выбор профи
+            </div>
+        )}
+        <div className="text-center mb-8 border-b border-white/5 pb-6">
+            <h3 className="text-gray-300 font-bold text-lg mb-4 uppercase tracking-wider">{title}</h3>
+            <div className="flex items-end justify-center gap-1.5">
+                <span className="text-5xl font-black text-white tracking-tighter">{price}</span>
+                <span className="text-lg font-bold text-gray-500 mb-1">₽</span>
+            </div>
+        </div>
+        <ul className="flex-1 space-y-4 mb-10">
+            {features.map((f: string, i: number) => (
+                <li key={i} className="flex items-start gap-4 text-sm text-gray-300 group-hover:text-white transition-colors">
+                    <div className={`p-0.5 rounded-full mt-0.5 bg-${color}-500/20`}>
+                         <Check className={`w-3 h-3 text-${color}-500 stroke-[3]`} />
+                    </div>
+                    <span className="leading-snug font-medium">{f}</span>
+                </li>
+            ))}
+        </ul>
+        <button onClick={onBuy} className={`w-full py-4 rounded-xl font-bold text-sm uppercase tracking-wider transition-all shadow-lg ${
+            recommended 
+            ? `bg-${color}-500 hover:bg-${color}-400 text-black shadow-${color}-500/20`
+            : 'bg-white/10 hover:bg-white/20 text-white'
+        }`}>
+            Купить доступ
+        </button>
+    </div>
+);
+
+const UltraAccessView = ({ activeSection, setActiveSection, setResultData, setError, onReqTopUp }: any) => (
+  <div className="pb-20 space-y-6">
+     <NavigationTabs activeSection={activeSection} setActiveSection={setActiveSection} setResultData={setResultData} setError={setError} />
+     <div className="max-w-7xl mx-auto px-4">
+        <div className="text-center mb-16 relative">
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[300px] bg-gradient-to-r from-banana-500/10 to-pink-500/10 blur-[80px] rounded-full pointer-events-none"></div>
+            
+            <div className="relative z-10">
+                <div className="inline-flex items-center gap-2 px-6 py-2 bg-white/5 rounded-full border border-white/10 mb-6 backdrop-blur-md">
+                    <Gem className="w-4 h-4 text-banana-500" />
+                    <span className="text-xs font-bold text-gray-300 tracking-widest uppercase">Premium Membership</span>
+                </div>
+                
+                <h2 className="text-5xl md:text-7xl font-black text-white mb-6 tracking-tighter">
+                    GOOGLE <span className="text-transparent bg-clip-text bg-gradient-to-r from-banana-500 to-pink-500">ULTRA AI</span>
+                </h2>
+                <p className="text-gray-400 max-w-3xl mx-auto text-lg md:text-xl leading-relaxed font-light">
+                    Полный безлимит на генерацию видео в <strong className="text-white">Veo</strong> и фото в <strong className="text-white">Nano Banana Pro</strong> через официальную платформу Google Labs. 
+                    <span className="block mt-2 text-gray-300 font-medium">В комплекте подробные инструкции.</span>
+                </p>
+
+                <div className="mt-8 flex items-center justify-center gap-2 text-green-400 font-bold text-xs uppercase tracking-wider animate-pulse">
+                    <ThumbsUp className="w-4 h-4" />
+                    Более 1000 положительных отзывов
+                </div>
+            </div>
+        </div>
+
+        <div className="grid md:grid-cols-2 lg:grid-cols-2 gap-8 px-2 max-w-4xl mx-auto">
+            {/* SKLADCHINA CARD */}
+            <ProductCard 
+                title="СКЛАДЧИНА БЕЗЛИМИТ" 
+                price="1000" 
+                color="pink"
+                recommended={true}
+                onBuy={onReqTopUp}
+                features={[
+                    "Veo Video Generator (Full)",
+                    "Nano Banana Pro (Full)",
+                    "Google Labs Platform",
+                    "Инструкции по использованию",
+                    "Гарантия замены"
+                ]} 
+            />
+
+            {/* PERSONAL CARD */}
+            <ProductCard 
+                title="ЛИЧНЫЙ АККАУНТ БЕЗЛИМИТ" 
+                price="4000" 
+                color="banana"
+                recommended={true}
+                onBuy={onReqTopUp}
+                features={[
+                    "Приватный доступ (Только вы)",
+                    "Veo Video Generator (Full)",
+                    "Nano Banana Pro (Full)",
+                    "Приоритетная поддержка",
+                    "Гарантия 30 дней"
+                ]} 
+            />
+        </div>
+     </div>
+  </div>
+);
 
 const NavigationTabs = ({ 
   activeSection, 
   setActiveSection, 
   setResultData, 
   setError 
-}: { 
-  activeSection: string, 
-  setActiveSection: (s: SectionType) => void,
-  setResultData: (d: any) => void,
-  setError: (e: any) => void
-}) => (
-   <div className="flex justify-start md:justify-center overflow-x-auto pb-4 scrollbar-hide -mx-4 px-4 md:mx-0 md:px-0">
-      <div className="bg-dark-900 p-1.5 rounded-2xl border border-white/10 flex shadow-2xl min-w-max">
-         {[
-            { id: MODEL_NANO, label: 'Nano Pro', icon: Wand2, color: 'text-banana-500' },
-            { id: MODEL_SORA, label: 'Sora', icon: Video, color: 'text-pink-500' },
-            { id: MODEL_TOPAZ, label: 'Topaz', icon: MonitorPlay, color: 'text-cyan-400' },
-            { id: SECTION_FULL_ACCESS, label: 'UNLIMITED', icon: Crown, color: 'text-yellow-400' },
-            { id: SECTION_BUSINESS, label: 'Бизнес', icon: Briefcase, color: 'text-blue-400' },
-         ].map((tab) => (
-            <button
-               key={tab.id}
-               onClick={() => {
-                  setActiveSection(tab.id as SectionType);
-                  setResultData(null); 
-                  setError(null);
-               }}
-               className={`flex items-center gap-2 px-3 md:px-5 py-2.5 md:py-3 rounded-xl text-xs md:text-sm font-bold transition-all duration-300 ${
-                  activeSection === tab.id 
-                     ? 'bg-dark-800 text-white shadow-lg border border-white/5' 
-                     : 'text-gray-500 hover:text-gray-300 hover:bg-white/5'
-               }`}
-            >
-               <tab.icon className={`w-3.5 h-3.5 md:w-4 md:h-4 ${activeSection === tab.id ? tab.color : 'text-gray-600'}`} />
-               <span className="whitespace-nowrap">{tab.label}</span>
+}: any) => {
+   const tabs = [
+      { id: MODEL_NANO, label: 'Nano', icon: Wand2, color: 'text-banana-500', activeBg: 'bg-banana-500/10' },
+      { id: MODEL_SORA, label: 'Sora', icon: Video, color: 'text-pink-500', activeBg: 'bg-pink-500/10' },
+      { id: MODEL_TOPAZ, label: 'Topaz', icon: MonitorPlay, color: 'text-blue-500', activeBg: 'bg-blue-500/10' },
+      { id: SECTION_ULTRA, label: 'ULTRA', icon: Crown, color: 'text-banana-500', activeBg: 'bg-banana-500/10' },
+   ];
+
+   const handleSwitch = (id: SectionType) => {
+      setActiveSection(id);
+      setResultData(null); 
+      setError(null);
+      window.scrollTo({top: 0, behavior: 'smooth'});
+   };
+
+   return (
+      <>
+         <div className="hidden md:flex justify-center bg-dark-950/80 p-2 rounded-2xl border border-white/10 w-fit mx-auto shadow-2xl backdrop-blur-xl mb-12 ring-1 ring-white/5">
+            {tabs.map(tab => (
+               <button key={tab.id} onClick={() => handleSwitch(tab.id as SectionType)} className={`flex items-center gap-2 px-8 py-3.5 rounded-xl text-sm font-bold transition-all duration-300 ${activeSection === tab.id ? `bg-white/10 text-white shadow-lg border border-white/10` : 'text-gray-500 hover:text-gray-300 hover:bg-white/5'}`}>
+                  <tab.icon className={`w-4 h-4 ${activeSection === tab.id ? tab.color : 'text-gray-600'}`} />
+                  {tab.label}
+               </button>
+            ))}
+            <button onClick={() => handleSwitch(SECTION_BUSINESS)} className={`ml-3 flex items-center gap-2 px-8 py-3.5 rounded-xl text-sm font-bold transition-all duration-300 ${activeSection === SECTION_BUSINESS ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/30' : 'text-blue-500 hover:bg-blue-500/10'}`}>
+               <Briefcase className="w-4 h-4" /> Бизнес
             </button>
-         ))}
-      </div>
-   </div>
-);
+         </div>
+
+         <div className="fixed bottom-0 left-0 right-0 bg-dark-950/90 backdrop-blur-3xl border-t border-white/10 px-6 pb-8 pt-4 flex justify-between items-center z-50 md:hidden safe-area-bottom shadow-[0_-10px_40px_rgba(0,0,0,0.8)]">
+            {tabs.map(tab => (
+               <button key={tab.id} onClick={() => handleSwitch(tab.id as SectionType)} className="flex flex-col items-center gap-1.5 w-16 group">
+                  <div className={`p-3 rounded-2xl transition-all duration-300 ${activeSection === tab.id ? `${tab.activeBg} scale-110 border border-white/10 shadow-lg shadow-${tab.color.split('-')[1]}-500/20` : 'hover:bg-white/5'}`}>
+                     <tab.icon className={`w-5 h-5 ${activeSection === tab.id ? tab.color : 'text-gray-500 group-hover:text-gray-300'}`} />
+                  </div>
+                  <span className={`text-[10px] font-bold transition-colors ${activeSection === tab.id ? 'text-white' : 'text-gray-600'}`}>{tab.label}</span>
+               </button>
+            ))}
+            <button onClick={() => handleSwitch(SECTION_BUSINESS)} className="flex flex-col items-center gap-1.5 w-16 group">
+               <div className={`p-3 rounded-2xl transition-all duration-300 ${activeSection === SECTION_BUSINESS ? 'bg-blue-500/10 scale-110 border border-white/10 shadow-lg shadow-blue-500/20' : 'hover:bg-white/5'}`}>
+                  <Briefcase className={`w-5 h-5 ${activeSection === SECTION_BUSINESS ? 'text-blue-500' : 'text-gray-500'}`} />
+               </div>
+               <span className={`text-[10px] font-bold transition-colors ${activeSection === SECTION_BUSINESS ? 'text-white' : 'text-gray-600'}`}>Бизнес</span>
+            </button>
+         </div>
+      </>
+   );
+};

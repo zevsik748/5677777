@@ -4,7 +4,7 @@ export type ModelType =
   | "sora-watermark-remover"
   | "topaz/video-upscale";
 
-export type SectionType = ModelType | "buy-full-access" | "business-turnkey";
+export type SectionType = ModelType | "google-ultra" | "business-turnkey";
 
 export enum AspectRatio {
   Square = "1:1",

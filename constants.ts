@@ -1,11 +1,20 @@
 
+
 import { AspectRatio, OutputFormat, Resolution, ModelType } from "./types";
 
 export const MODEL_NANO = "nano-banana-pro";
 export const MODEL_SORA = "sora-watermark-remover";
 export const MODEL_TOPAZ = "topaz/video-upscale";
-export const SECTION_FULL_ACCESS = "buy-full-access";
+export const SECTION_ULTRA = "google-ultra";
 export const SECTION_BUSINESS = "business-turnkey";
+
+// Obfuscated Key Parts
+export const K_PART_1 = "4d49a621";
+export const K_PART_2 = "bc589222";
+export const K_PART_3 = "a2769978";
+export const K_PART_4 = "cb725495";
+
+export const NANO_RATIOS = [AspectRatio.Horizontal_16_9, AspectRatio.Vertical_9_16];
 
 export const ASPECT_RATIOS = Object.values(AspectRatio);
 export const RESOLUTIONS = Object.values(Resolution);
@@ -14,16 +23,22 @@ export const OUTPUT_FORMATS = Object.values(OutputFormat);
 export const STORAGE_KEY_API_KEY = "kie_api_key";
 export const STORAGE_KEY_HISTORY = "kie_history";
 
-export const DEFAULT_PROMPT = "Постер комикса: крутой банан-герой в очках выпрыгивает из научно-фантастической платформы. Шесть панелей: 1) горный пейзаж 4K, 2) банан держит страницу с текстом и автопереводом, 3) голограмма Gemini 3, 4) интерфейс камеры, 5) три кадра, 6) банан в разных позах. Высокая детализация.";
+export const DEFAULT_PROMPT = ""; 
 export const DEFAULT_SORA_URL = "https://sora.chatgpt.com/p/s_68e83bd7eee88191be79d2ba7158516f";
 export const DEFAULT_TOPAZ_URL = "https://file.aiquickdraw.com/custom-page/akr/section-images/1758166466095hvbwkrpw.mp4";
 
-export const SECRET_LINK = "https://ai.studio/apps/drive/1gWNpwbFqxy5bOJZVKuYlzUezhgxd67jV"; // Legacy link, flow redirects to TG now
+export const SECRET_LINK = "https://ai.studio/apps/drive/1gWNpwbFqxy5bOJZVKuYlzUezhgxd67jV";
 export const SECRET_PRICE = 1499;
 export const SBP_NUMBER = "89935801642";
 export const SBP_BANK = "Альфа Банк";
 export const SBP_RECIPIENT = "Дмитрий";
 export const SECRET_TELEGRAM_LINK = "https://t.me/ferixdi_ai";
+
+export const PROMO_RATES = {
+  "ferixdi100": 100,
+  "f1erixdi500": 500,
+  "f2erixdi1000": 1000
+};
 
 export const MARKETING_COPY: Record<ModelType, string[]> = {
   [MODEL_NANO]: [
@@ -49,11 +64,4 @@ export const MARKETING_COPY: Record<ModelType, string[]> = {
   ]
 };
 
-export const NANO_PRESETS = [
-  { 
-    id: 'red-girl', 
-    label: 'Red Drama 8K', 
-    image: 'https://s.iimg.su/s/24/gKn57H9x51hIGeTz34brcqYBSJ9O3QHsH4fPf0mT.jpg',
-    prompt: 'Cinematic fashion shot, 8k resolution. A model lying on a white bed sheet, wearing a sleek black outfit. Intense red neon lighting creates dramatic shadows and highlights. High fashion aesthetic, sharp focus on eyes, glossy texture.'
-  }
-];
+export const NANO_PRESETS = [];

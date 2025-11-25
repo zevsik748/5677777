@@ -15,9 +15,19 @@
             },
             colors: {
               banana: {
-                400: '#FACC15',
-                500: '#EAB308',
-                600: '#CA8A04',
+                400: '#FFE64D', 
+                500: '#FEDC00', /* Brand Yellow */
+                600: '#E5C600',
+              },
+              pink: {
+                400: '#FF9FC5',
+                500: '#FF73A8', /* Brand Pink */
+                600: '#E64D85',
+              },
+              blue: {
+                400: '#6D85F7',
+                500: '#3F5EF4', /* Brand Blue */
+                600: '#2A46D6',
               },
               dark: {
                 400: '#9CA3AF',
@@ -31,6 +41,13 @@
             },
             animation: {
               'in': 'fade-in 0.3s ease-out',
+              'pulse-glow': 'pulse-glow 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+            },
+            keyframes: {
+              'pulse-glow': {
+                '0%, 100%': { opacity: 1 },
+                '50%': { opacity: .5 },
+              }
             }
           }
         }
@@ -40,7 +57,7 @@
       body {
         background-color: #030712;
         color: #e5e7eb;
-        background-image: radial-gradient(circle at 50% 0%, #1f2937 0%, #030712 60%);
+        background-image: radial-gradient(circle at 50% 0%, #111827 0%, #030712 100%);
         min-height: 100vh;
       }
       /* Custom scrollbar */
@@ -65,7 +82,18 @@
       .custom-scrollbar::-webkit-scrollbar-thumb {
         background: #374151;
       }
+      
+      /* Hide scrollbar for chrome/safari/opera */
+      .scrollbar-hide::-webkit-scrollbar {
+        display: none;
+      }
+      /* Hide scrollbar for IE, Edge and Firefox */
+      .scrollbar-hide {
+        -ms-overflow-style: none;  /* IE and Edge */
+        scrollbar-width: none;  /* Firefox */
+      }
     </style>
+  <meta name="lava-verify" content="e638c1bff9684633" />
   <script type="importmap">
 {
   "imports": {
