@@ -12,7 +12,6 @@ import {
 } from '../types';
 import { 
   NANO_RATIOS, 
-  DEFAULT_SORA_URL,
   MODEL_NANO,
   MODEL_SORA,
   MODEL_TOPAZ,
@@ -46,14 +45,53 @@ const PRICES: Record<string, number> = {
 
 const generateId = () => Date.now().toString(36) + Math.random().toString(36).substring(2);
 
-// Utility to strip Data URI header and get raw base64 for API
-const cleanBase64 = (str: string | null): string => {
-  if (!str) return "";
-  // API expects raw base64 without "data:image/png;base64," prefix
-  if (str.includes(',')) {
-    return str.split(',')[1];
-  }
-  return str;
+// --- ULTRA ROBUST IMAGE PROCESSOR ---
+// Converts any image file to a standard JPEG Base64 Data URI string
+const processImageToJpeg = (file: File): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        // Limit max dimension to 2048 to prevent massive payloads
+        let width = img.width;
+        let height = img.height;
+        const maxDim = 2048;
+        
+        if (width > maxDim || height > maxDim) {
+          if (width > height) {
+            height = Math.round((height * maxDim) / width);
+            width = maxDim;
+          } else {
+            width = Math.round((width * maxDim) / height);
+            height = maxDim;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+            reject(new Error("Canvas context error"));
+            return;
+        }
+        
+        // Draw white background (for transparent PNGs)
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillRect(0, 0, width, height);
+        ctx.drawImage(img, 0, 0, width, height);
+        
+        // Export as High Quality JPEG
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.95);
+        resolve(dataUrl);
+      };
+      img.onerror = () => reject(new Error("Failed to load image"));
+      img.src = event.target?.result as string;
+    };
+    reader.onerror = (e) => reject(e);
+    reader.readAsDataURL(file);
+  });
 };
 
 export const ImageGenerator: React.FC<ImageGeneratorProps> = ({ 
@@ -70,11 +108,11 @@ export const ImageGenerator: React.FC<ImageGeneratorProps> = ({
   const [prompt, setPrompt] = useState(''); 
   const [aspectRatio, setAspectRatio] = useState<AspectRatio>(AspectRatio.Horizontal_16_9);
   const [format, setFormat] = useState<OutputFormat>(OutputFormat.PNG);
-  const [refImage, setRefImage] = useState<string | null>(null);
+  const [refImage, setRefImage] = useState<string | null>(null); // Now holds Full Data URI (JPEG)
 
   // Sora Form State
   const [soraMode, setSoraMode] = useState<'link' | 'file'>('link');
-  const [soraUrl, setSoraUrl] = useState(''); // Starts empty
+  const [soraUrl, setSoraUrl] = useState('');
   const [soraFile, setSoraFile] = useState<string | null>(null);
 
   // Topaz Form State
@@ -177,8 +215,8 @@ export const ImageGenerator: React.FC<ImageGeneratorProps> = ({
       if (model === MODEL_NANO) {
         if (!prompt.trim()) throw new Error("Введите промпт");
         
-        // FIX: Ensure image input is an array of RAW BASE64 strings
-        const imageInputArray = refImage ? [cleanBase64(refImage)] : [];
+        // USE RAW FULL DATA URI (JPEG) - The most compatible format
+        const imageInputArray = refImage ? [refImage] : [];
         
         input = { 
             prompt, 
@@ -190,11 +228,11 @@ export const ImageGenerator: React.FC<ImageGeneratorProps> = ({
       } else if (model === MODEL_SORA) {
         const vidUrl = soraMode === 'link' ? soraUrl : (soraFile || undefined);
         if (!vidUrl) throw new Error("Укажите видео");
-        // For Sora, send URL if link, or clean base64 if file (assuming API supports base64 in video_url field)
-        input = { video_url: soraMode === 'file' ? cleanBase64(vidUrl) : vidUrl };
+        // Sora usually accepts URL or DataURI
+        input = { video_url: vidUrl };
       } else if (model === MODEL_TOPAZ) {
         if (!topazFile) throw new Error("Загрузите видео");
-        input = { video_url: cleanBase64(topazFile), upscale_factor: upscaleFactor };
+        input = { video_url: topazFile, upscale_factor: upscaleFactor };
       } else throw new Error("Unknown model");
       
       const taskId = await createTask(apiKey, model, input);
@@ -233,7 +271,7 @@ export const ImageGenerator: React.FC<ImageGeneratorProps> = ({
                   {activeSection === MODEL_TOPAZ && <h2 className="text-4xl md:text-5xl font-black text-white tracking-tighter drop-shadow-xl">Topaz <span className="text-blue-500">4K</span></h2>}
                   <div className="mt-3 inline-flex items-center gap-2 px-3 py-1 bg-white/5 rounded-full border border-white/5">
                       <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></div>
-                      <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">Сохраняем доступ к лучшим инструментам</span>
+                      <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">Сохраняем доступ к лучшим инструментам без обхода</span>
                   </div>
                </div>
                
@@ -377,9 +415,24 @@ export const ImageGenerator: React.FC<ImageGeneratorProps> = ({
   );
 };
 
-const FileUpload = ({ color, file, setFile, small }: any) => (
+const FileUpload = ({ color, file, setFile, small }: any) => {
+  // Use robust processor
+  const onFileChange = async (e: any) => {
+    if (e.target.files?.[0]) {
+        try {
+            // Convert to standardized JPEG Base64
+            const jpegData = await processImageToJpeg(e.target.files[0]);
+            setFile(jpegData);
+        } catch (err) {
+            console.error("Image processing failed", err);
+            alert("Ошибка обработки изображения");
+        }
+    }
+  };
+
+  return (
    <div className={`relative group cursor-pointer overflow-hidden rounded-3xl transition-all duration-300 ${small ? 'h-full min-h-[120px]' : 'h-48'}`}>
-      <input type="file" onChange={(e) => { if(e.target.files?.[0]) { const r = new FileReader(); r.onload = () => setFile(r.result); r.readAsDataURL(e.target.files[0]); }}} className="absolute inset-0 z-20 opacity-0 w-full h-full cursor-pointer" />
+      <input type="file" onChange={onFileChange} className="absolute inset-0 z-20 opacity-0 w-full h-full cursor-pointer" accept="image/*" />
       <div className={`absolute inset-0 border-2 border-dashed flex flex-col items-center justify-center gap-4 transition-all duration-300 ${file ? `border-${color}-500 bg-${color}-500/10` : 'border-white/10 bg-black/40 group-hover:bg-white/5 group-hover:border-white/30'}`}>
          {file && !small && (
              <div className="absolute inset-0 opacity-40 bg-cover bg-center" style={{backgroundImage: `url(${file})`}}></div>
@@ -392,7 +445,8 @@ const FileUpload = ({ color, file, setFile, small }: any) => (
          </div>}
       </div>
    </div>
-);
+  );
+};
 
 const BusinessView = ({ activeSection, setActiveSection, setResultData, setError }: any) => (
   <div className="pb-20 space-y-6">
