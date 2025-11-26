@@ -1,4 +1,4 @@
-import React, { useState, useEffect, ReactNode, ErrorInfo, Component } from 'react';
+import React, { useState, useEffect, ReactNode, ErrorInfo } from 'react';
 import { ApiKeyModal } from './components/ApiKeyModal';
 import { ImageGenerator } from './components/ImageGenerator';
 import { HistorySidebar } from './components/HistorySidebar';
@@ -9,8 +9,11 @@ import { Zap, Clock, Wallet, AlertTriangle, Send, Bot } from 'lucide-react';
 interface ErrorBoundaryProps { children?: ReactNode; }
 interface ErrorBoundaryState { hasError: boolean; error: string; }
 
-class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
-  state: ErrorBoundaryState = { hasError: false, error: "" };
+class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  constructor(props: ErrorBoundaryProps) {
+    super(props);
+    this.state = { hasError: false, error: "" };
+  }
 
   static getDerivedStateFromError(error: Error) {
     return { hasError: true, error: error.message };

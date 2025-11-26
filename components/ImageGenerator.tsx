@@ -40,8 +40,13 @@ const PRICES: Record<string, number> = {
 
 const generateId = () => Date.now().toString(36) + Math.random().toString(36).substring(2);
 
-// Helper to convert file to Raw Base64 JPEG (stripping header)
-const processFileToRawBase64 = (file: File): Promise<string> => {
+// Helper: Strip Data URI header to get raw Base64
+const cleanBase64 = (dataUri: string) => {
+  return dataUri.split(',')[1] || dataUri;
+};
+
+// Helper: Convert image to standard JPEG to prevent "file type not supported"
+const processImageToJpeg = (file: File): Promise<string> => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = (event) => {
@@ -52,19 +57,14 @@ const processFileToRawBase64 = (file: File): Promise<string> => {
         canvas.height = img.height;
         const ctx = canvas.getContext('2d');
         if (!ctx) {
-            reject(new Error("Canvas context failed"));
+            resolve(event.target?.result as string); // Fallback
             return;
         }
-        // Fill white background to handle transparent PNGs
-        ctx.fillStyle = '#FFFFFF';
+        ctx.fillStyle = '#FFFFFF'; // Flatten transparent backgrounds
         ctx.fillRect(0, 0, canvas.width, canvas.height);
         ctx.drawImage(img, 0, 0);
-        
-        // Export as JPEG 
-        const dataUrl = canvas.toDataURL('image/jpeg', 0.95);
-        // Strip header "data:image/jpeg;base64," to get raw base64
-        const rawBase64 = dataUrl.replace(/^data:image\/(png|jpeg|jpg|webp);base64,/, '');
-        resolve(rawBase64);
+        const jpegUrl = canvas.toDataURL('image/jpeg', 0.95);
+        resolve(jpegUrl);
       };
       img.onerror = reject;
       img.src = event.target?.result as string;
@@ -82,6 +82,12 @@ export const ImageGenerator: React.FC<ImageGeneratorProps> = ({
   onReqTopUp,
   selectedItem
 }) => {
+  // Navigation Tabs: Filter out Sora and Topaz
+  const tabs = [
+      { id: MODEL_NANO, label: 'Nano Banana Pro', icon: Wand2, color: 'text-banana-500' },
+      { id: SECTION_ULTRA, label: 'ULTRA', icon: Crown, color: 'text-pink-500' },
+  ];
+
   const [activeSection, setActiveSection] = useState<SectionType>(MODEL_NANO);
 
   // Nano State
@@ -190,11 +196,16 @@ export const ImageGenerator: React.FC<ImageGeneratorProps> = ({
             
             const images: string[] = [];
             
-            // Case 1: File -> Convert to Jpeg Raw Base64 -> Send
+            // Case 1: File -> Process to JPEG -> Strip Header -> Send RAW Base64
             if (nanoMode === 'file' && nanoFileObj) {
                 setStatusMsg('Обработка фото...');
-                const rawBase64 = await processFileToRawBase64(nanoFileObj);
-                images.push(rawBase64);
+                try {
+                    const jpegDataUri = await processImageToJpeg(nanoFileObj);
+                    const rawBase64 = cleanBase64(jpegDataUri);
+                    images.push(rawBase64);
+                } catch (e: any) {
+                    throw new Error(`Ошибка обработки файла: ${e.message}`);
+                }
             } 
             // Case 2: Direct Link
             else if (nanoMode === 'link' && nanoUrl) {
@@ -214,7 +225,7 @@ export const ImageGenerator: React.FC<ImageGeneratorProps> = ({
 
         setStatusMsg('Отправка задачи...');
         const taskId = await createTask(apiKey, model, input);
-        onDeductBalance(price); // Deduct only on success
+        onDeductBalance(price); 
         startPolling(taskId, model);
 
     } catch (e: any) {
@@ -224,12 +235,90 @@ export const ImageGenerator: React.FC<ImageGeneratorProps> = ({
   };
 
   // Views
-  if (activeSection === SECTION_BUSINESS) return <BusinessView activeSection={activeSection} setActiveSection={setActiveSection} setResultData={setResultData} setError={setError} />;
-  if (activeSection === SECTION_ULTRA) return <UltraAccessView activeSection={activeSection} setActiveSection={setActiveSection} setResultData={setResultData} setError={setError} onReqTopUp={onReqTopUp} />;
+  if (activeSection === SECTION_BUSINESS) return (
+    <div className="pb-20 space-y-6">
+        <Navigation activeSection={activeSection} setActiveSection={setActiveSection} tabs={tabs} />
+        <div className="max-w-4xl mx-auto px-4 text-center">
+            <div className="bg-gradient-to-br from-blue-900 to-blue-950 border border-blue-500/20 rounded-[3rem] p-8 md:p-20 relative overflow-hidden shadow-2xl">
+                <div className="relative z-10">
+                    <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-blue-500/10 rounded-full border border-blue-500/20 mb-8">
+                        <span className="w-2 h-2 bg-blue-400 rounded-full animate-pulse"></span>
+                        <span className="text-xs font-bold text-blue-300 uppercase tracking-widest">Trend 2025</span>
+                    </div>
+                    <h2 className="text-4xl md:text-7xl font-black text-white mb-6 tracking-tighter leading-tight">БИЗНЕС <br/><span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-blue-600">ПОД КЛЮЧ</span></h2>
+                    <p className="text-blue-100 text-base md:text-xl mb-10 max-w-2xl mx-auto leading-relaxed opacity-80">Собственный AI-сервис без блокировок и VPN. Полная упаковка, подключение нейросетей, настройка трафика.</p>
+                    <a href={SECRET_TELEGRAM_LINK} target="_blank" className="inline-flex items-center gap-2 px-10 py-4 bg-white text-blue-950 font-black rounded-2xl hover:scale-105 transition-transform shadow-xl">
+                        ОБСУДИТЬ ПРОЕКТ <Send className="w-4 h-4" />
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+  );
+
+  if (activeSection === SECTION_ULTRA) return (
+    <div className="pb-20 space-y-6">
+        <Navigation activeSection={activeSection} setActiveSection={setActiveSection} tabs={tabs} />
+        <div className="max-w-6xl mx-auto px-4">
+            <div className="text-center mb-12 animate-in slide-in-from-bottom-4 fade-in duration-700">
+                <div className="inline-flex items-center gap-2 px-4 py-1 bg-white/5 rounded-full mb-6 border border-white/5 backdrop-blur-md">
+                    <Gem className="w-4 h-4 text-banana-500" />
+                    <span className="text-xs font-bold text-gray-300 uppercase tracking-widest">Official Google Labs Access</span>
+                </div>
+                <h2 className="text-5xl md:text-7xl font-black text-white mb-6 tracking-tighter">GOOGLE <span className="text-transparent bg-clip-text bg-gradient-to-r from-banana-500 to-pink-500">ULTRA AI</span></h2>
+                <p className="text-gray-400 max-w-2xl mx-auto text-lg leading-relaxed">
+                    Полноценный доступ к <strong className="text-white">Veo</strong> (генерация видео) и <strong className="text-white">Nano Banana Pro</strong> через официальную платформу.
+                </p>
+                <div className="mt-8 flex justify-center items-center gap-2 text-green-500 text-xs font-bold uppercase tracking-widest bg-green-500/5 py-2 px-4 rounded-full inline-flex border border-green-500/10">
+                    <ThumbsUp className="w-3 h-3" /> Более 1000 положительных отзывов
+                </div>
+            </div>
+            
+            <div className="grid md:grid-cols-2 gap-6 max-w-4xl mx-auto">
+                {/* Card 1 */}
+                <div className="bg-dark-950/80 backdrop-blur-xl border border-white/10 rounded-[2.5rem] p-8 hover:border-pink-500/50 transition-all group hover:shadow-[0_0_30px_rgba(255,115,168,0.15)]">
+                    <div className="text-center mb-8">
+                        <div className="w-12 h-12 bg-pink-500/10 rounded-2xl flex items-center justify-center mx-auto mb-4 text-pink-500 group-hover:scale-110 transition-transform">
+                            <Crown className="w-6 h-6" />
+                        </div>
+                        <h3 className="text-xl font-black text-white uppercase tracking-wide mb-2">Складчина Безлимит</h3>
+                        <div className="text-sm text-gray-500 font-medium mb-6">Общий доступ к аккаунту</div>
+                        <div className="text-5xl font-black text-white">1000₽</div>
+                    </div>
+                    <ul className="space-y-4 mb-8">
+                        <li className="flex items-center gap-3 text-sm text-gray-300"><Check className="w-4 h-4 text-pink-500" /> Доступ к Google Labs</li>
+                        <li className="flex items-center gap-3 text-sm text-gray-300"><Check className="w-4 h-4 text-pink-500" /> Безлимит Veo и Nano</li>
+                        <li className="flex items-center gap-3 text-sm text-gray-300"><Check className="w-4 h-4 text-pink-500" /> Гарантия замены</li>
+                    </ul>
+                    <button onClick={onReqTopUp} className="w-full py-4 bg-pink-600 text-white font-bold rounded-2xl hover:bg-pink-500 transition-colors shadow-lg hover:shadow-pink-500/25">КУПИТЬ ДОСТУП</button>
+                </div>
+
+                {/* Card 2 */}
+                <div className="bg-dark-950/80 backdrop-blur-xl border border-white/10 rounded-[2.5rem] p-8 hover:border-banana-500/50 transition-all group hover:shadow-[0_0_30px_rgba(254,220,0,0.15)] relative overflow-hidden">
+                    <div className="absolute top-0 right-0 bg-banana-500 text-black text-[10px] font-bold px-3 py-1 rounded-bl-xl">BEST CHOICE</div>
+                    <div className="text-center mb-8">
+                        <div className="w-12 h-12 bg-banana-500/10 rounded-2xl flex items-center justify-center mx-auto mb-4 text-banana-500 group-hover:scale-110 transition-transform">
+                            <Star className="w-6 h-6 fill-current" />
+                        </div>
+                        <h3 className="text-xl font-black text-white uppercase tracking-wide mb-2">Личный Аккаунт</h3>
+                        <div className="text-sm text-gray-500 font-medium mb-6">Приватный доступ в одни руки</div>
+                        <div className="text-5xl font-black text-white">4000₽</div>
+                    </div>
+                    <ul className="space-y-4 mb-8">
+                        <li className="flex items-center gap-3 text-sm text-gray-300"><Check className="w-4 h-4 text-banana-500" /> Полная приватность</li>
+                        <li className="flex items-center gap-3 text-sm text-gray-300"><Check className="w-4 h-4 text-banana-500" /> Все лимиты ваши (2TB)</li>
+                        <li className="flex items-center gap-3 text-sm text-gray-300"><Check className="w-4 h-4 text-banana-500" /> Приоритетная поддержка</li>
+                    </ul>
+                    <button onClick={onReqTopUp} className="w-full py-4 bg-banana-500 text-black font-bold rounded-2xl hover:bg-banana-400 transition-colors shadow-lg hover:shadow-banana-500/25">КУПИТЬ АККАУНТ</button>
+                </div>
+            </div>
+        </div>
+    </div>
+  );
 
   return (
     <div className="space-y-8 pb-24 md:pb-12">
-        <NavigationTabs activeSection={activeSection} setActiveSection={setActiveSection} setResultData={setResultData} setError={setError} />
+        <Navigation activeSection={activeSection} setActiveSection={setActiveSection} tabs={tabs} />
 
         <div className="relative w-full max-w-4xl mx-auto">
             {/* Ambient Glow */}
@@ -406,7 +495,7 @@ const FileUpload = ({ color, filePreview, setFileObj, setPreview }: any) => {
         
         {filePreview ? (
             <>
-                <img src={filePreview} alt="preview" className="absolute inset-0 w-full h-full object-cover opacity-50 group-hover:opacity-30 transition-opacity" />
+                <img src={filePreview} alt="preview" className="absolute inset-0 w-full h-full object-cover opacity-100 transition-opacity" />
                 <div className="relative z-10 bg-black/70 px-3 py-1 rounded-full text-[10px] text-white font-bold flex items-center gap-1">
                     <Check className="w-3 h-3 text-green-500" /> Выбрано
                 </div>
@@ -421,107 +510,17 @@ const FileUpload = ({ color, filePreview, setFileObj, setPreview }: any) => {
   );
 };
 
-const BusinessView = ({ activeSection, setActiveSection, setResultData, setError }: any) => (
-  <div className="pb-20 space-y-6">
-     <NavigationTabs activeSection={activeSection} setActiveSection={setActiveSection} setResultData={setResultData} setError={setError} />
-     <div className="max-w-4xl mx-auto px-4 text-center">
-        <div className="bg-gradient-to-br from-blue-900 to-blue-950 border border-blue-500/20 rounded-[3rem] p-8 md:p-20 relative overflow-hidden shadow-2xl">
-            <div className="relative z-10">
-                <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-blue-500/10 rounded-full border border-blue-500/20 mb-8">
-                    <span className="w-2 h-2 bg-blue-400 rounded-full animate-pulse"></span>
-                    <span className="text-xs font-bold text-blue-300 uppercase tracking-widest">Trend 2025</span>
-                </div>
-                <h2 className="text-4xl md:text-7xl font-black text-white mb-6 tracking-tighter leading-tight">БИЗНЕС <br/><span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-blue-600">ПОД КЛЮЧ</span></h2>
-                <p className="text-blue-100 text-base md:text-xl mb-10 max-w-2xl mx-auto leading-relaxed opacity-80">Собственный AI-сервис без блокировок и VPN. Полная упаковка, подключение нейросетей, настройка трафика.</p>
-                <a href={SECRET_TELEGRAM_LINK} target="_blank" className="inline-flex items-center gap-2 px-10 py-4 bg-white text-blue-950 font-black rounded-2xl hover:scale-105 transition-transform shadow-xl">
-                    ОБСУДИТЬ ПРОЕКТ <Send className="w-4 h-4" />
-                </a>
-            </div>
-        </div>
-     </div>
-  </div>
-);
-
-const UltraAccessView = ({ activeSection, setActiveSection, setResultData, setError, onReqTopUp }: any) => (
-  <div className="pb-20 space-y-6">
-     <NavigationTabs activeSection={activeSection} setActiveSection={setActiveSection} setResultData={setResultData} setError={setError} />
-     <div className="max-w-6xl mx-auto px-4">
-        <div className="text-center mb-12 animate-in slide-in-from-bottom-4 fade-in duration-700">
-            <div className="inline-flex items-center gap-2 px-4 py-1 bg-white/5 rounded-full mb-6 border border-white/5 backdrop-blur-md">
-                <Gem className="w-4 h-4 text-banana-500" />
-                <span className="text-xs font-bold text-gray-300 uppercase tracking-widest">Official Google Labs Access</span>
-            </div>
-            <h2 className="text-5xl md:text-7xl font-black text-white mb-6 tracking-tighter">GOOGLE <span className="text-transparent bg-clip-text bg-gradient-to-r from-banana-500 to-pink-500">ULTRA AI</span></h2>
-            <p className="text-gray-400 max-w-2xl mx-auto text-lg leading-relaxed">
-                Полноценный доступ к <strong className="text-white">Veo</strong> (генерация видео) и <strong className="text-white">Nano Banana Pro</strong> через официальную платформу.
-            </p>
-            <div className="mt-8 flex justify-center items-center gap-2 text-green-500 text-xs font-bold uppercase tracking-widest bg-green-500/5 py-2 px-4 rounded-full inline-flex border border-green-500/10">
-                <ThumbsUp className="w-3 h-3" /> Более 1000 положительных отзывов
-            </div>
-        </div>
-        
-        <div className="grid md:grid-cols-2 gap-6 max-w-4xl mx-auto">
-            {/* Card 1 */}
-            <div className="bg-dark-950/80 backdrop-blur-xl border border-white/10 rounded-[2.5rem] p-8 hover:border-pink-500/50 transition-all group hover:shadow-[0_0_30px_rgba(255,115,168,0.15)]">
-                <div className="text-center mb-8">
-                    <div className="w-12 h-12 bg-pink-500/10 rounded-2xl flex items-center justify-center mx-auto mb-4 text-pink-500 group-hover:scale-110 transition-transform">
-                        <Crown className="w-6 h-6" />
-                    </div>
-                    <h3 className="text-xl font-black text-white uppercase tracking-wide mb-2">Складчина Безлимит</h3>
-                    <div className="text-sm text-gray-500 font-medium mb-6">Общий доступ к аккаунту</div>
-                    <div className="text-5xl font-black text-white">1000₽</div>
-                </div>
-                <ul className="space-y-4 mb-8">
-                    <li className="flex items-center gap-3 text-sm text-gray-300"><Check className="w-4 h-4 text-pink-500" /> Доступ к Google Labs</li>
-                    <li className="flex items-center gap-3 text-sm text-gray-300"><Check className="w-4 h-4 text-pink-500" /> Безлимит Veo и Nano</li>
-                    <li className="flex items-center gap-3 text-sm text-gray-300"><Check className="w-4 h-4 text-pink-500" /> Гарантия замены</li>
-                </ul>
-                <button onClick={onReqTopUp} className="w-full py-4 bg-pink-600 text-white font-bold rounded-2xl hover:bg-pink-500 transition-colors shadow-lg hover:shadow-pink-500/25">КУПИТЬ ДОСТУП</button>
-            </div>
-
-            {/* Card 2 */}
-            <div className="bg-dark-950/80 backdrop-blur-xl border border-white/10 rounded-[2.5rem] p-8 hover:border-banana-500/50 transition-all group hover:shadow-[0_0_30px_rgba(254,220,0,0.15)] relative overflow-hidden">
-                <div className="absolute top-0 right-0 bg-banana-500 text-black text-[10px] font-bold px-3 py-1 rounded-bl-xl">BEST CHOICE</div>
-                <div className="text-center mb-8">
-                    <div className="w-12 h-12 bg-banana-500/10 rounded-2xl flex items-center justify-center mx-auto mb-4 text-banana-500 group-hover:scale-110 transition-transform">
-                        <Star className="w-6 h-6 fill-current" />
-                    </div>
-                    <h3 className="text-xl font-black text-white uppercase tracking-wide mb-2">Личный Аккаунт</h3>
-                    <div className="text-sm text-gray-500 font-medium mb-6">Приватный доступ в одни руки</div>
-                    <div className="text-5xl font-black text-white">4000₽</div>
-                </div>
-                <ul className="space-y-4 mb-8">
-                    <li className="flex items-center gap-3 text-sm text-gray-300"><Check className="w-4 h-4 text-banana-500" /> Полная приватность</li>
-                    <li className="flex items-center gap-3 text-sm text-gray-300"><Check className="w-4 h-4 text-banana-500" /> Все лимиты ваши (2TB)</li>
-                    <li className="flex items-center gap-3 text-sm text-gray-300"><Check className="w-4 h-4 text-banana-500" /> Приоритетная поддержка</li>
-                </ul>
-                <button onClick={onReqTopUp} className="w-full py-4 bg-banana-500 text-black font-bold rounded-2xl hover:bg-banana-400 transition-colors shadow-lg hover:shadow-banana-500/25">КУПИТЬ АККАУНТ</button>
-            </div>
-        </div>
-     </div>
-  </div>
-);
-
-const NavigationTabs = ({ activeSection, setActiveSection, setResultData, setError }: any) => {
-   const tabs = [
-      { id: MODEL_NANO, label: 'Nano Banana Pro', icon: Wand2, color: 'text-banana-500' },
-      { id: SECTION_ULTRA, label: 'ULTRA', icon: Crown, color: 'text-pink-500' },
-   ];
-   
-   const handleSwitch = (id: SectionType) => { setActiveSection(id); setResultData(null); setError(null); };
-   
-   return (
-      <div className="flex justify-center mb-10 sticky top-20 z-30">
-         <div className="bg-black/60 backdrop-blur-xl p-1.5 rounded-2xl border border-white/10 flex gap-1 shadow-2xl">
-            {tabs.map(t => (
-                <button key={t.id} onClick={() => handleSwitch(t.id as SectionType)} className={`px-5 py-2.5 rounded-xl flex items-center gap-2 text-xs md:text-sm font-bold transition-all ${activeSection === t.id ? 'bg-white/15 text-white shadow-inner' : 'text-gray-500 hover:text-gray-300'}`}>
-                    <t.icon className={`w-4 h-4 ${activeSection === t.id ? t.color : 'text-gray-600'}`} /> {t.label}
-                </button>
-            ))}
-            <button onClick={() => handleSwitch(SECTION_BUSINESS)} className={`px-5 py-2.5 rounded-xl flex items-center gap-2 text-xs md:text-sm font-bold transition-all ${activeSection === SECTION_BUSINESS ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/20' : 'text-blue-500 hover:bg-blue-500/10'}`}>
-                <Briefcase className="w-4 h-4" /> Бизнес
+const Navigation = ({ activeSection, setActiveSection, tabs }: any) => (
+    <div className="flex justify-center mb-10 sticky top-20 z-30">
+        <div className="bg-black/60 backdrop-blur-xl p-1.5 rounded-2xl border border-white/10 flex gap-1 shadow-2xl">
+        {tabs.map((t: any) => (
+            <button key={t.id} onClick={() => setActiveSection(t.id)} className={`px-5 py-2.5 rounded-xl flex items-center gap-2 text-xs md:text-sm font-bold transition-all ${activeSection === t.id ? 'bg-white/15 text-white shadow-inner' : 'text-gray-500 hover:text-gray-300'}`}>
+                <t.icon className={`w-4 h-4 ${activeSection === t.id ? t.color : 'text-gray-600'}`} /> {t.label}
             </button>
-         </div>
-      </div>
-   );
-};
+        ))}
+        <button onClick={() => setActiveSection(SECTION_BUSINESS)} className={`px-5 py-2.5 rounded-xl flex items-center gap-2 text-xs md:text-sm font-bold transition-all ${activeSection === SECTION_BUSINESS ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/20' : 'text-blue-500 hover:bg-blue-500/10'}`}>
+            <Briefcase className="w-4 h-4" /> Бизнес
+        </button>
+        </div>
+    </div>
+);
